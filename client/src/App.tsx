@@ -174,7 +174,7 @@ export default function App() {
           <div className="card-details">
             <div className="detail-row">
               <span>Host / Engine:</span>
-              <span className="detail-val">localhost:5432 (PG 16)</span>
+              <span className="detail-val">localhost:5433 (PG 16)</span>
             </div>
             <div className="detail-row">
               <span>Latency:</span>
