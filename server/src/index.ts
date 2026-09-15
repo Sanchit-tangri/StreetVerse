@@ -10,34 +10,19 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Permissive CORS for Localhost & Vercel Preview/Production deployments
-app.use(cors({
-  origin: (origin, callback) => {
-    // Allow server-to-server or non-browser tools (e.g. curl, postman)
-    if (!origin) return callback(null, true);
-
-    const allowedOrigins = [
-      'http://localhost:5173',
-      'http://localhost:3000',
-      'http://localhost:4173',
-      process.env.CLIENT_URL,
-    ].filter(Boolean) as string[];
-
-    // Allow vercel preview and production subdomains
-    const isVercel = /\.vercel\.app$/.test(origin);
-    const isAllowed = allowedOrigins.includes(origin) || isVercel;
-
-    if (isAllowed) {
-      callback(null, true);
-    } else {
-      // In development / demo, permit with warning
-      callback(null, true);
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-}));
+// Permissive CORS for Localhost & all Vercel Preview/Production deployments
+app.use((req: Request, res: Response, next) => {
+  const origin = req.headers.origin;
+  res.header('Access-Control-Allow-Origin', origin || '*');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, ngrok-skip-browser-warning, Accept');
+  
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 app.use(express.json());
 

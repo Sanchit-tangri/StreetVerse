@@ -134,9 +134,16 @@ export default function App() {
           <div className="card-details">
             <div className="detail-row">
               <span>Endpoint:</span>
-              <span className="detail-val" title={API_BASE_URL}>
-                {API_BASE_URL.length > 28 ? API_BASE_URL.slice(0, 25) + '...' : API_BASE_URL}
-              </span>
+              <a 
+                href={`${API_BASE_URL}/api/health`} 
+                target="_blank" 
+                rel="noreferrer" 
+                className="detail-val" 
+                style={{ color: '#38bdf8', textDecoration: 'underline' }}
+                title="Click to open backend health endpoint in new tab"
+              >
+                {API_BASE_URL.replace(/^https?:\/\//, '').slice(0, 22)}... ↗
+              </a>
             </div>
             <div className="detail-row">
               <span>Uptime:</span>
@@ -152,6 +159,11 @@ export default function App() {
             <button className="btn btn-secondary" onClick={loadHealth} disabled={healthLoading}>
               <RefreshCw size={14} className={healthLoading ? 'spin' : ''} /> Refresh Status
             </button>
+            {healthError && (
+              <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: '#f87171', lineHeight: '1.4' }}>
+                Tip: Click the endpoint link above to check if Chrome blocks the tunnel tab.
+              </div>
+            )}
           </div>
         </div>
 
