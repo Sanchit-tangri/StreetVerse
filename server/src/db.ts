@@ -6,7 +6,7 @@ dotenv.config();
 const { Pool } = pg;
 
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/trading_db',
+  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5433/trading_db',
   connectionTimeoutMillis: 5000,
 });
 
