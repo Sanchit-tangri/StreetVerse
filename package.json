@@ -4,6 +4,7 @@
   "private": true,
   "description": "StreetVerse - Full-stack application with Next/Vite React frontend and Express WebSocket PostgreSQL backend",
   "scripts": {
+    "build": "npm --prefix client install && npm --prefix client run build",
     "server:install": "npm --prefix server install",
     "client:install": "npm --prefix client install",
     "install:all": "npm run server:install && npm run client:install",
