@@ -1,22 +1,61 @@
 services:
-  postgres:
+  # Database 1: Customer DB (PostgreSQL - Isolated customer profiles, orders & receipts)
+  customer-db:
     image: postgres:16-alpine
-    container_name: local-postgres
+    container_name: streetverse-customer-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: trading_db
+      POSTGRES_DB: streetverse_customer_db
     ports:
       - "5433:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - customer_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d trading_db"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d streetverse_customer_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Database 2: Merchant DB (PostgreSQL + PostGIS + pgvector for Geospatial & Semantic RAG)
+  merchant-db:
+    image: pgvector/pgvector:pg16
+    container_name: streetverse-merchant-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: streetverse_merchant_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - merchant_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d streetverse_merchant_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # In-Memory Cache, Pub/Sub & 5-Minute Booking Locks
+  redis:
+    image: redis:7-alpine
+    container_name: streetverse-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
 
 volumes:
-  postgres_data:
+  customer_pgdata:
+    driver: local
+  merchant_pgdata:
+    driver: local
+  redis_data:
     driver: local

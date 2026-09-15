@@ -1,0 +1,52 @@
+/**
+ * StreetVerse: Warm Cream Design Tokens & Theme Philosophy
+ * 
+ * Philosophy: Designed for accessible hyperlocal commerce, friendly and non-intimidating
+ * for both elderly neighborhood residents and small local shopkeepers.
+ */
+
+:root, [data-theme="warm-cream"] {
+  /* Warm Cream Palette (Default) */
+  --background: #FAF7F2;       /* Warm linen / soft cream background */
+  --surface: #FFFDF9;          /* Elevated card surface */
+  --surface-hover: #F5EFE6;    /* Subtle hover warmth */
+  
+  --primary: #D97706;          /* Warm Amber / Saffron terracotta */
+  --primary-foreground: #FFFFFF;
+  --primary-hover: #B45309;
+
+  --secondary: #10B981;        /* Neighborhood Fresh Green */
+  --secondary-foreground: #FFFFFF;
+
+  --foreground: #292524;       /* Warm deep stone / charcoal (no harsh pitch black) */
+  --muted: #F3ECE2;
+  --muted-foreground: #78716C; /* Soft legible stone */
+
+  --border: #E7E5E4;           /* Gentle organic border */
+  --ring: rgba(217, 119, 6, 0.35);
+
+  --font-heading: 'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-body: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  --radius: 0.875rem;          /* Friendly, rounded organic corners */
+}
+
+/* Eye-Comfort Dark Theme (Gentle for late-night mobile shopping) */
+[data-theme="eye-comfort-dark"] {
+  --background: #1C1917;       /* Warm Stone 900 (not cold pitch black) */
+  --surface: #292524;          /* Stone 800 */
+  --surface-hover: #383431;
+
+  --primary: #F59E0B;          /* Luminous Amber */
+  --primary-foreground: #1C1917;
+  --primary-hover: #FBBF24;
+
+  --secondary: #34D399;        /* Soft Mint Green */
+  --secondary-foreground: #1C1917;
+
+  --foreground: #F5F5F4;       /* Warm White */
+  --muted: #44403C;
+  --muted-foreground: #A8A29E;
+
+  --border: #44403C;
+  --ring: rgba(245, 158, 11, 0.4);
+}
