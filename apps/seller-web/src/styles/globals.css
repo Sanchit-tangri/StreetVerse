@@ -1,0 +1,25 @@
+:root, [data-theme="warm-cream"] {
+  --background: #FAF7F2;
+  --surface: #FFFDF9;
+  --surface-hover: #F5EFE6;
+  --primary: #059669;
+  --primary-foreground: #FFFFFF;
+  --foreground: #292524;
+  --muted: #F3ECE2;
+  --muted-foreground: #78716C;
+  --border: #E7E5E4;
+  --font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-family);
+  -webkit-font-smoothing: antialiased;
+}
