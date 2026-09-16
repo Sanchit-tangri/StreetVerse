@@ -1,0 +1,29 @@
+:root, [data-theme="warm-cream"] {
+  --background: #FAF7F2;
+  --surface: #FFFDF9;
+  --surface-hover: #F5EFE6;
+  --primary: #D97706;
+  --primary-foreground: #FFFFFF;
+  --primary-hover: #B45309;
+  --secondary: #10B981;
+  --secondary-foreground: #FFFFFF;
+  --foreground: #292524;
+  --muted: #F3ECE2;
+  --muted-foreground: #78716C;
+  --border: #E7E5E4;
+  --ring: rgba(217, 119, 6, 0.35);
+  --font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-family);
+  -webkit-font-smoothing: antialiased;
+}
