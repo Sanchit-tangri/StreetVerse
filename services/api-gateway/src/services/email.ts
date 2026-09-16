@@ -1,6 +1,12 @@
-import nodemailer from 'nodemailer';
+import path from 'path';
 import crypto from 'crypto';
+import nodemailer from 'nodemailer';
 import Redis from 'ioredis';
+import dotenv from 'dotenv';
+
+dotenv.config({ path: path.resolve(process.cwd(), 'services', 'api-gateway', '.env') });
+dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env') });
+dotenv.config();
 
 // Standard Redis client for OTP storage
 export const redisClient = new Redis(process.env.REDIS_URL || 'redis://localhost:6380', {
@@ -8,16 +14,21 @@ export const redisClient = new Redis(process.env.REDIS_URL || 'redis://localhost
   retryStrategy: (times) => Math.min(times * 100, 3000)
 });
 
-// Configure SMTP transport
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '587', 10),
-  secure: process.env.SMTP_SECURE === 'true', // true for 465, false for 587
-  auth: {
-    user: process.env.SMTP_USER || '',
-    pass: process.env.SMTP_PASS || ''
-  }
-});
+// Helper to configure SMTP transport dynamically
+function getTransporter() {
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const port = parseInt(process.env.SMTP_PORT || '465', 10);
+  const secure = process.env.SMTP_SECURE === 'true' || port === 465;
+  const user = (process.env.SMTP_USER || '').trim();
+  const pass = (process.env.SMTP_PASS || '').replace(/\s+/g, '');
+
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    auth: { user, pass }
+  });
+}
 
 const OTP_TTL_SECONDS = 300; // 5 minutes
 const MAX_ATTEMPTS = 3;
@@ -104,7 +115,7 @@ export async function sendOtpEmail(recipientEmail: string, otp: string, roleName
   // Check if SMTP credentials are provided
   if (process.env.SMTP_USER && process.env.SMTP_PASS) {
     try {
-      await transporter.sendMail(mailOptions);
+      await getTransporter().sendMail(mailOptions);
       console.log(`[Email Service] Sent OTP email successfully to ${normalizedEmail}`);
       return { sent: true };
     } catch (error) {

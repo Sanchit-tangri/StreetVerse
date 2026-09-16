@@ -8,6 +8,10 @@ import pg from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import { createAuthRouter } from './routes/auth';
 
+import path from 'path';
+
+dotenv.config({ path: path.resolve(process.cwd(), 'services', 'api-gateway', '.env') });
+dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 dotenv.config();
 
 const app = express();
