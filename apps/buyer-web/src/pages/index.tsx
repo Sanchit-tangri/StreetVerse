@@ -57,6 +57,7 @@ const mockShops: MockShop[] = [
   }
 ];
 
+// StreetVerse Hyperlocal Commerce - Production Build v1.0.1
 export default function BuyerHome() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'DISCOVER' | 'BOOKING' | 'AI_ASSISTANT'>('DISCOVER');
