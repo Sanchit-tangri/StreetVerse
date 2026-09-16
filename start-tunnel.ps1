@@ -1,6 +1,7 @@
 # start-tunnel.ps1
 param (
-    [int]$Port = 5000
+    [int]$Port = 5000,
+    [string]$Domain = "https://unplowed-nutlike-antitoxic.ngrok-free.dev"
 )
 
 Write-Host "=============================================" -ForegroundColor Cyan
@@ -8,6 +9,21 @@ Write-Host "   StreetVerse Local Backend Tunnel Setup    " -ForegroundColor Cyan
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host "Forwarding HTTPS & WSS requests to localhost:$Port..." -ForegroundColor Yellow
 
+$ngrok = Get-Command ngrok -ErrorAction SilentlyContinue
+
+if ($ngrok) {
+    Write-Host ""
+    Write-Host "Starting permanent ngrok tunnel to $Domain..." -ForegroundColor Green
+    Write-Host "Permanent URL: $Domain" -ForegroundColor Cyan
+    Write-Host "This URL is permanent and configured in your Vercel Environment Variables." -ForegroundColor Yellow
+    Write-Host "Press Ctrl+C to stop the tunnel at any time." -ForegroundColor Gray
+    Write-Host ""
+
+    ngrok http $Port --url $Domain
+    exit 0
+}
+
+Write-Host "ngrok not found in PATH. Falling back to Cloudflare Tunnel..." -ForegroundColor Yellow
 $cloudflared = Get-Command cloudflared -ErrorAction SilentlyContinue
 
 if (-not $cloudflared) {
