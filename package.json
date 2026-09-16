@@ -22,7 +22,8 @@
     "db:down": "docker compose down",
     "tunnel": "powershell -ExecutionPolicy Bypass -File .\\start-tunnel.ps1 -Port 5000",
     "tunnel:ngrok": "ngrok http 5000 --url https://unplowed-nutlike-antitoxic.ngrok-free.dev",
-    "tunnel:cloudflared": "cloudflared tunnel --url http://localhost:5000"
+    "tunnel:cloudflared": "cloudflared tunnel --url http://localhost:5000",
+    "test": "npx tsx test-cases/run-all-tests.ts"
   },
   "keywords": [
     "hyperlocal-commerce",
@@ -35,5 +36,14 @@
     "langgraph"
   ],
   "author": "Sanchit Tangri (Group P76, MIT-WPU)",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/pg": "^8.23.1",
+    "bcryptjs": "^3.0.3",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.23.0",
+    "tsx": "^4.23.13"
+  }
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { 
   Store, 
@@ -9,35 +9,96 @@ import {
   Clock, 
   CheckCircle2, 
   Users,
-  Bell
+  Bell,
+  LogOut,
+  ShieldCheck
 } from 'lucide-react';
+import { SellerAuth } from '../components/auth/SellerAuth';
 
 export default function SellerDashboard() {
+  const [currentMerchant, setCurrentMerchant] = useState<any>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [activeTab, setActiveTab] = useState<'INVENTORY' | 'SLOTS' | 'INSIGHTS'>('INVENTORY');
+
+  // Check saved session
+  useEffect(() => {
+    try {
+      const savedToken = localStorage.getItem('streetverse_seller_token');
+      const savedMerchant = localStorage.getItem('streetverse_seller_merchant');
+      if (savedToken && savedMerchant) {
+        setCurrentMerchant(JSON.parse(savedMerchant));
+      }
+    } catch (e) {
+      console.warn('Merchant session parse error:', e);
+    } finally {
+      setAuthChecked(true);
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('streetverse_seller_token');
+    localStorage.removeItem('streetverse_seller_merchant');
+    setCurrentMerchant(null);
+  };
+
+  if (!authChecked) {
+    return (
+      <div style={{ backgroundColor: '#FAF7F2', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ color: '#78716C', fontSize: '0.9rem' }}>Loading Merchant Portal...</div>
+      </div>
+    );
+  }
+
+  // Unauthenticated -> Show SellerAuth login first
+  if (!currentMerchant) {
+    return <SellerAuth onAuthSuccess={(merchant) => setCurrentMerchant(merchant)} />;
+  }
 
   return (
     <div style={{ backgroundColor: '#FAF7F2', minHeight: '100vh', color: '#292524', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
       <Head>
-        <title>StreetVerse Merchant Portal - Dashboard</title>
+        <title>{currentMerchant.businessName || 'Merchant'} - StreetVerse Portal</title>
       </Head>
 
       {/* Header */}
       <header style={{ borderBottom: '1px solid #E7E5E4', backgroundColor: '#FFFDF9', padding: '1rem 2rem' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <div style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF' }}>
               <Store size={22} />
             </div>
             <div>
-              <h1 style={{ fontSize: '1.3rem', fontWeight: 800, margin: 0 }}>Green Valley Daily Needs</h1>
-              <p style={{ fontSize: '0.75rem', color: '#78716C', margin: 0 }}>Merchant ID: M-KOTHRUD-04 • StreetVerse Merchant DB</p>
+              <h1 style={{ fontSize: '1.3rem', fontWeight: 800, margin: 0 }}>{currentMerchant.businessName || 'My Store'}</h1>
+              <p style={{ fontSize: '0.75rem', color: '#78716C', margin: 0 }}>Category: {currentMerchant.category || 'RETAIL'} • StreetVerse Merchant DB</p>
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <span style={{ backgroundColor: '#ECFDF5', color: '#059669', padding: '0.35rem 0.8rem', borderRadius: 9999, fontSize: '0.8rem', fontWeight: 700 }}>
               ● Store Live on Hyperlocal Map
             </span>
+
+            {/* Logout Button */}
+            <button
+              onClick={handleLogout}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                backgroundColor: '#FEE2E2',
+                color: '#B91C1C',
+                border: 'none',
+                padding: '0.4rem 0.75rem',
+                borderRadius: 9999,
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+              title="Sign Out"
+            >
+              <LogOut size={13} />
+              <span>Log Out</span>
+            </button>
           </div>
         </div>
       </header>

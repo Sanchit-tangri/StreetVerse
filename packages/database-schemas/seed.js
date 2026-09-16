@@ -2,6 +2,7 @@ import pg from 'pg';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import bcrypt from 'bcryptjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,24 +27,37 @@ async function runSeed() {
     console.log('1. Applying DDL schema to Customer DB (port 5433)...');
     const customerDdl = fs.readFileSync(path.join(__dirname, 'customer-db', 'schema.sql'), 'utf-8');
     await customerPool.query(customerDdl);
-    console.log('   ✓ Customer DB schema applied successfully.');
+    await customerPool.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT false;
+    `);
+    console.log('   ✓ Customer DB schema and auth columns applied successfully.');
 
     // 2. Migrate Merchant DB (cube + earthdistance + vector)
     console.log('2. Applying DDL schema to Merchant DB (port 5434)...');
     const merchantDdl = fs.readFileSync(path.join(__dirname, 'merchant-db', 'schema.sql'), 'utf-8');
     await merchantPool.query(merchantDdl);
-    console.log('   ✓ Merchant DB schema applied successfully.');
+    await merchantPool.query(`
+      ALTER TABLE merchants ADD COLUMN IF NOT EXISTS owner_email VARCHAR(255) UNIQUE;
+      ALTER TABLE merchants ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);
+      ALTER TABLE merchants ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT false;
+    `);
+    console.log('   ✓ Merchant DB schema and auth columns applied successfully.');
 
     // 3. Seed Merchant DB with Neighborhood Businesses in Kothrud, Pune
-    console.log('3. Seeding Merchants with Geospatial Coordinates...');
+    console.log('3. Seeding Merchants with Geospatial Coordinates & Auth Passwords...');
+    const demoPasswordHash = await bcrypt.hash('Password123!', 10);
     
     // Merchant 1: Green Valley Daily Needs (GPS: 18.5074° N, 73.8077° E - Kothrud)
     const m1Res = await merchantPool.query(`
-      INSERT INTO merchants (business_name, category, owner_phone, upi_vpa, address, pincode, latitude, longitude, is_open, rating)
+      INSERT INTO merchants (business_name, category, owner_phone, owner_email, password_hash, is_verified, upi_vpa, address, pincode, latitude, longitude, is_open, rating)
       VALUES (
         'Green Valley Daily Needs & Organic Grocery',
         'GROCERY',
         '+919876543210',
+        'greenvalley@streetverse.local',
+        $1,
+        true,
         'greenvalley.store@okhdfcbank',
         'Shop 4, Mayur Colony, Kothrud, Pune',
         '411038',
@@ -52,18 +66,25 @@ async function runSeed() {
         true,
         4.8
       )
-      ON CONFLICT (owner_phone) DO UPDATE SET business_name = EXCLUDED.business_name
+      ON CONFLICT (owner_phone) DO UPDATE SET 
+        business_name = EXCLUDED.business_name,
+        owner_email = EXCLUDED.owner_email,
+        password_hash = EXCLUDED.password_hash,
+        is_verified = true
       RETURNING id;
-    `);
+    `, [demoPasswordHash]);
     const m1Id = m1Res.rows[0].id;
 
     // Merchant 2: Aura Unisex Salon (GPS: 18.5085° N, 73.8055° E)
     const m2Res = await merchantPool.query(`
-      INSERT INTO merchants (business_name, category, owner_phone, upi_vpa, address, pincode, latitude, longitude, is_open, rating)
+      INSERT INTO merchants (business_name, category, owner_phone, owner_email, password_hash, is_verified, upi_vpa, address, pincode, latitude, longitude, is_open, rating)
       VALUES (
         'Aura Unisex Neighborhood Salon',
         'SALON',
         '+919876543211',
+        'aura.salon@streetverse.local',
+        $1,
+        true,
         'aurasalon.kothrud@okaxis',
         'Plot 12, Ideal Colony, Kothrud, Pune',
         '411038',
@@ -72,18 +93,25 @@ async function runSeed() {
         true,
         4.9
       )
-      ON CONFLICT (owner_phone) DO UPDATE SET business_name = EXCLUDED.business_name
+      ON CONFLICT (owner_phone) DO UPDATE SET 
+        business_name = EXCLUDED.business_name,
+        owner_email = EXCLUDED.owner_email,
+        password_hash = EXCLUDED.password_hash,
+        is_verified = true
       RETURNING id;
-    `);
+    `, [demoPasswordHash]);
     const m2Id = m2Res.rows[0].id;
 
     // Merchant 3: Apollo Lifecare Pharmacy (GPS: 18.5060° N, 73.8090° E)
     const m3Res = await merchantPool.query(`
-      INSERT INTO merchants (business_name, category, owner_phone, upi_vpa, address, pincode, latitude, longitude, is_open, rating)
+      INSERT INTO merchants (business_name, category, owner_phone, owner_email, password_hash, is_verified, upi_vpa, address, pincode, latitude, longitude, is_open, rating)
       VALUES (
         'Apollo Lifecare Pharmacy',
         'PHARMACY',
         '+919876543212',
+        'apollo.lifecare@streetverse.local',
+        $1,
+        true,
         'apollo.lifecare@okicici',
         'Shop 1, Dahanukar Colony, Kothrud, Pune',
         '411038',
@@ -92,12 +120,16 @@ async function runSeed() {
         true,
         4.7
       )
-      ON CONFLICT (owner_phone) DO UPDATE SET business_name = EXCLUDED.business_name
+      ON CONFLICT (owner_phone) DO UPDATE SET 
+        business_name = EXCLUDED.business_name,
+        owner_email = EXCLUDED.owner_email,
+        password_hash = EXCLUDED.password_hash,
+        is_verified = true
       RETURNING id;
-    `);
+    `, [demoPasswordHash]);
     const m3Id = m3Res.rows[0].id;
 
-    console.log('   ✓ Seeded 3 local neighborhood merchants with GPS coordinates.');
+    console.log('   ✓ Seeded 3 local neighborhood merchants with GPS coordinates & auth passwords.');
 
     // 4. Seed Inventory Items with Vector Embeddings (1536-dim normalized vectors)
     console.log('4. Seeding Inventory Items with pgvector embeddings...');
@@ -114,16 +146,16 @@ async function runSeed() {
       ON CONFLICT DO NOTHING;
     `, [m1Id, dummyVector, m3Id]);
 
-    console.log('   ✓ Seeded 5 inventory items with 1536d embeddings.');
+    console.log('   ✓ Seeded inventory items with pgvector embeddings.');
 
     // 5. Seed Service Appointment Slots
-    console.log('5. Seeding Service Appointment Slots for Aura Salon...');
+    console.log('5. Seeding Service Appointment Slots for Salon...');
     const now = new Date();
-    const slot1Start = new Date(now.getTime() + 2 * 3600000);
-    const slot1End = new Date(slot1Start.getTime() + 45 * 60000);
+    const slot1Start = new Date(now.getTime() + 60 * 60 * 1000);
+    const slot1End = new Date(now.getTime() + 90 * 60 * 1000);
 
-    const slot2Start = new Date(now.getTime() + 4 * 3600000);
-    const slot2End = new Date(slot2Start.getTime() + 45 * 60000);
+    const slot2Start = new Date(now.getTime() + 120 * 60 * 1000);
+    const slot2End = new Date(now.getTime() + 150 * 60 * 1000);
 
     await merchantPool.query(`
       INSERT INTO service_slots (merchant_id, service_name, slot_start, slot_end, price, status)
@@ -136,12 +168,14 @@ async function runSeed() {
     console.log('   ✓ Seeded available service appointment slots.');
 
     // 6. Seed Sample Customer in Customer DB
-    console.log('6. Seeding Test Customer in Customer DB...');
+    console.log('6. Seeding Test Customer in Customer DB with Auth...');
     await customerPool.query(`
-      INSERT INTO users (phone, full_name, email, preferred_language, home_address)
-      VALUES ('+919890123456', 'Rahul Deshmukh', 'rahul.d@example.com', 'en', 'Kothrud, Pune')
-      ON CONFLICT (phone) DO NOTHING;
-    `);
+      INSERT INTO users (phone, full_name, email, password_hash, is_verified, preferred_language, home_address)
+      VALUES ('+919890123456', 'Rahul Deshmukh', 'rahul.d@example.com', $1, true, 'en', 'Kothrud, Pune')
+      ON CONFLICT (phone) DO UPDATE SET
+        password_hash = EXCLUDED.password_hash,
+        is_verified = true;
+    `, [demoPasswordHash]);
     console.log('   ✓ Seeded test customer in Customer DB.');
 
     console.log('\n========================================================');

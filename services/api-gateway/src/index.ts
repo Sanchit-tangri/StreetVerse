@@ -6,6 +6,7 @@ import { Server as SocketIOServer } from 'socket.io';
 import Redis from 'ioredis';
 import pg from 'pg';
 import { v4 as uuidv4 } from 'uuid';
+import { createAuthRouter } from './routes/auth';
 
 dotenv.config();
 
@@ -34,6 +35,9 @@ const customerPool = new pg.Pool({
 const merchantPool = new pg.Pool({
   connectionString: process.env.MERCHANT_DB_URL || 'postgresql://postgres:postgres@localhost:5434/streetverse_merchant_db'
 });
+
+// Mount StreetVerse Authentication Router (Buyer & Seller)
+app.use('/api/v1/auth', createAuthRouter(customerPool, merchantPool));
 
 // =========================================================================
 // 1. INTER-SERVICE BOOKING LOCK CONTRACT (5-Minute Atomic Holding Lock)

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { 
   Search, 
@@ -10,8 +10,11 @@ import {
   MessageSquare, 
   QrCode, 
   CheckCircle2, 
-  AlertCircle 
+  AlertCircle,
+  LogOut,
+  UserCheck
 } from 'lucide-react';
+import { BuyerAuth } from '../components/auth/BuyerAuth';
 
 interface MockShop {
   id: string;
@@ -57,8 +60,10 @@ const mockShops: MockShop[] = [
   }
 ];
 
-// StreetVerse Hyperlocal Commerce - Production Build v1.0.1
+// StreetVerse Hyperlocal Commerce - Production Build v1.0.2
 export default function BuyerHome() {
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'DISCOVER' | 'BOOKING' | 'AI_ASSISTANT'>('DISCOVER');
   const [bookingState, setBookingState] = useState<{
@@ -68,6 +73,41 @@ export default function BuyerHome() {
     upiUrl: string;
     confirmed: boolean;
   } | null>(null);
+
+  // Check persisted session on mount
+  useEffect(() => {
+    try {
+      const savedToken = localStorage.getItem('streetverse_buyer_token');
+      const savedUser = localStorage.getItem('streetverse_buyer_user');
+      if (savedToken && savedUser) {
+        setCurrentUser(JSON.parse(savedUser));
+      }
+    } catch (e) {
+      console.warn('Session parse error:', e);
+    } finally {
+      setAuthChecked(true);
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('streetverse_buyer_token');
+    localStorage.removeItem('streetverse_buyer_user');
+    setCurrentUser(null);
+  };
+
+  // If session is still checking, show loading
+  if (!authChecked) {
+    return (
+      <div style={{ backgroundColor: '#FAF7F2', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ color: '#78716C', fontSize: '0.9rem' }}>Loading StreetVerse...</div>
+      </div>
+    );
+  }
+
+  // If unauthenticated, show the BuyerAuth login screen first!
+  if (!currentUser) {
+    return <BuyerAuth onAuthSuccess={(user) => setCurrentUser(user)} />;
+  }
 
   // 5-Minute Atomic Slot Lock Simulation
   const handleLockSlot = (shop: MockShop) => {
@@ -99,20 +139,50 @@ export default function BuyerHome() {
 
       {/* Warm Cream Header */}
       <header style={{ borderBottom: '1px solid #E7E5E4', backgroundColor: '#FFFDF9', padding: '1rem 2rem', position: 'sticky', top: 0, zIndex: 10 }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <div style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF' }}>
               <ShoppingBag size={22} />
             </div>
             <div>
               <h1 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#292524', margin: 0, letterSpacing: '-0.02em' }}>StreetVerse</h1>
-              <p style={{ fontSize: '0.75rem', color: '#78716C', margin: 0 }}>Hyperlocal Commerce • MIT-WPU Group P76</p>
+              <p style={{ fontSize: '0.75rem', color: '#78716C', margin: 0 }}>Hyperlocal Commerce • Customer Portal</p>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#F3ECE2', padding: '0.4rem 0.9rem', borderRadius: 9999, fontSize: '0.85rem' }}>
-            <MapPin size={16} color="#D97706" />
-            <span style={{ fontWeight: 600 }}>Kothrud, Pune (Within 1.5 km)</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#F3ECE2', padding: '0.4rem 0.9rem', borderRadius: 9999, fontSize: '0.85rem' }}>
+              <MapPin size={16} color="#D97706" />
+              <span style={{ fontWeight: 600 }}>Kothrud, Pune</span>
+            </div>
+
+            {/* Authenticated User Badge */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#FFF', border: '1px solid #E7E5E4', padding: '0.35rem 0.85rem', borderRadius: 9999, fontSize: '0.8rem' }}>
+              <UserCheck size={14} color="#16A34A" />
+              <span style={{ fontWeight: 600, color: '#292524' }}>{currentUser.fullName || currentUser.phone}</span>
+            </div>
+
+            {/* Logout Button */}
+            <button
+              onClick={handleLogout}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                backgroundColor: '#FEE2E2',
+                color: '#B91C1C',
+                border: 'none',
+                padding: '0.4rem 0.75rem',
+                borderRadius: 9999,
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+              title="Sign Out"
+            >
+              <LogOut size={13} />
+              <span>Log Out</span>
+            </button>
           </div>
         </div>
       </header>

@@ -49,6 +49,7 @@ postgres_data/
 *.sqlite3
 *.db
 *.sql
+!packages/database-schemas/**/*.sql
 *.dump
 
 # Logs
