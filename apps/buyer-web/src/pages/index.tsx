@@ -199,8 +199,9 @@ export default function BuyerHome() {
       return;
     }
     setIsSearching(true);
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://unplowed-nutlike-antitoxic.ngrok-free.dev';
     try {
-      const res = await axios.post('http://localhost:5000/api/v1/search/hyperlocal', {
+      const res = await axios.post(`${API_URL}/api/v1/search/hyperlocal`, {
         query: searchQuery,
         latitude: userCoords?.lat || 18.5204, // Default to Pune if denied
         longitude: userCoords?.lng || 73.8567,

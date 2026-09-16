@@ -18,6 +18,8 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ user
   const [status, setStatus] = useState<{ type: 'error' | 'success' | 'info'; message: string } | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://unplowed-nutlike-antitoxic.ngrok-free.dev';
+
   const handleRequestEmailChange = async (e: React.FormEvent) => {
     e.preventDefault();
     if (email === user.email && fullName === user.fullName) {
@@ -30,7 +32,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ user
     if (email !== user.email) {
       setLoading(true);
       try {
-        await axios.post('http://localhost:5000/api/user/request-email-change', {
+        await axios.post(`${API_URL}/api/user/request-email-change`, {
           newEmail: email,
           userId: user.id
         }, { withCredentials: true, headers: { 'ngrok-skip-browser-warning': 'true' } });
@@ -53,7 +55,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ user
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await axios.post('http://localhost:5000/api/user/verify-email-change', {
+      const res = await axios.post(`${API_URL}/api/user/verify-email-change`, {
         newEmail: email,
         userId: user.id,
         otp
