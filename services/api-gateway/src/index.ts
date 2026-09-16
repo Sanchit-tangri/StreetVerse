@@ -50,7 +50,7 @@ app.use('/api/v1/auth', createAuthRouter(customerPool, merchantPool));
 app.use('/api/user', createUserRouter(customerPool));
 
 // Mount AI Search Proxy Router
-app.use('/api/v1/search', createSearchRouter());
+app.use('/api/v1/search', createSearchRouter(merchantPool));
 
 // =========================================================================
 // 1. INTER-SERVICE BOOKING LOCK CONTRACT (5-Minute Atomic Holding Lock)
