@@ -102,30 +102,23 @@ export default function BuyerHome() {
         const { latitude, longitude } = position.coords;
         setUserCoords({ lat: latitude, lng: longitude });
         try {
-          const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-          if (!apiKey) {
-            setLocationName(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
-            return;
-          }
-          const res = await axios.get(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`);
-          const results = res.data.results;
-          if (results && results.length > 0) {
-            // Try to find a neighborhood or locality
-            const addressComponents = results[0].address_components;
-            let locality = '';
-            let sublocality = '';
-            for (const comp of addressComponents) {
-              if (comp.types.includes('sublocality')) sublocality = comp.long_name;
-              if (comp.types.includes('locality')) locality = comp.long_name;
-            }
-            const displayName = sublocality ? `${sublocality}, ${locality}` : (locality || 'Current Location');
-            setLocationName(displayName);
+          const res = await axios.get(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=14&addressdetails=1`,
+            { headers: { 'Accept-Language': 'en-US,en;q=0.9' } }
+          );
+          
+          const address = res.data.address;
+          if (address) {
+            const locality = address.suburb || address.neighbourhood || address.city_district || address.city || address.town || address.village || 'Current Location';
+            const city = address.city || address.state_district || address.state || '';
+            const displayName = city && locality !== city ? `${locality}, ${city}` : locality;
+            setLocationName(displayName || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
           } else {
             setLocationName('Location found (no address)');
           }
         } catch (err) {
-          console.error(err);
-          setLocationName('Location found (offline)');
+          console.error('Geocoding error:', err);
+          setLocationName(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
         }
       },
       (error) => {
