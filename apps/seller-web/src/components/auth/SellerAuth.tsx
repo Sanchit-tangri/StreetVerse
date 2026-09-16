@@ -1,19 +1,10 @@
 import React, { useState } from 'react';
 import { 
   Store, 
-  Lock, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  KeyRound, 
   ArrowRight, 
   CheckCircle2, 
   AlertCircle, 
   RotateCw,
-  Sparkles,
-  ShieldCheck,
-  CreditCard,
-  Building2,
   Eye,
   EyeOff
 } from 'lucide-react';
@@ -26,12 +17,10 @@ export const SellerAuth: React.FC<SellerAuthProps> = ({ onAuthSuccess }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [step, setStep] = useState<'CREDENTIALS' | 'OTP'>('CREDENTIALS');
 
-  // Login form
+  // Form fields
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-
-  // Registration form
   const [businessName, setBusinessName] = useState('');
   const [category, setCategory] = useState('GROCERY');
   const [ownerPhone, setOwnerPhone] = useState('');
@@ -39,14 +28,12 @@ export const SellerAuth: React.FC<SellerAuthProps> = ({ onAuthSuccess }) => {
   const [upiVpa, setUpiVpa] = useState('');
   const [address, setAddress] = useState('');
   const [pincode, setPincode] = useState('411038');
-  const [latitude, setLatitude] = useState('18.5074');
-  const [longitude, setLongitude] = useState('73.8077');
 
-  // OTP form
+  // OTP
   const [emailForOtp, setEmailForOtp] = useState('');
   const [otp, setOtp] = useState('');
 
-  // UI status
+  // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -54,21 +41,12 @@ export const SellerAuth: React.FC<SellerAuthProps> = ({ onAuthSuccess }) => {
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
-  // Demo Quick-Fill options
-  const handleQuickFill = (type: 'grocery' | 'salon' | 'pharmacy') => {
-    if (type === 'grocery') {
-      setIdentifier('greenvalley@streetverse.local');
-      setPassword('Password123!');
-    } else if (type === 'salon') {
-      setIdentifier('aura.salon@streetverse.local');
-      setPassword('Password123!');
-    } else {
-      setIdentifier('apollo.lifecare@streetverse.local');
-      setPassword('Password123!');
-    }
+  const handleDemoFill = () => {
+    setIsLogin(true);
+    setIdentifier('greenvalley@streetverse.local');
+    setPassword('Password123!');
   };
 
-  // Submit Credentials (Login or Register)
   const handleSubmitCredentials = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -77,7 +55,6 @@ export const SellerAuth: React.FC<SellerAuthProps> = ({ onAuthSuccess }) => {
 
     try {
       if (isLogin) {
-        // Merchant Password Login
         const res = await fetch(`${API_URL}/api/v1/auth/seller/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -86,15 +63,14 @@ export const SellerAuth: React.FC<SellerAuthProps> = ({ onAuthSuccess }) => {
         const data = await res.json();
 
         if (!res.ok) {
-          throw new Error(data.error || 'Merchant login failed. Check phone/email and password.');
+          throw new Error(data.error || 'Merchant login failed. Check credentials.');
         }
 
         setEmailForOtp(data.email);
         setStep('OTP');
-        setSuccessMsg(data.message || '6-digit OTP sent to merchant registered email.');
+        setSuccessMsg(data.message || 'Verification code sent to merchant email.');
         startCooldown();
       } else {
-        // Merchant Registration
         const res = await fetch(`${API_URL}/api/v1/auth/seller/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -107,8 +83,8 @@ export const SellerAuth: React.FC<SellerAuthProps> = ({ onAuthSuccess }) => {
             upi_vpa: upiVpa,
             address,
             pincode,
-            latitude: parseFloat(latitude) || 18.5074,
-            longitude: parseFloat(longitude) || 73.8077
+            latitude: 18.5074,
+            longitude: 73.8077
           })
         });
         const data = await res.json();
@@ -119,7 +95,7 @@ export const SellerAuth: React.FC<SellerAuthProps> = ({ onAuthSuccess }) => {
 
         setEmailForOtp(data.email);
         setStep('OTP');
-        setSuccessMsg(data.message || 'Verification OTP sent to merchant email.');
+        setSuccessMsg(data.message || 'Verification code sent to email.');
         startCooldown();
       }
     } catch (err: any) {
@@ -129,7 +105,6 @@ export const SellerAuth: React.FC<SellerAuthProps> = ({ onAuthSuccess }) => {
     }
   };
 
-  // Verify 6-digit OTP
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -145,13 +120,11 @@ export const SellerAuth: React.FC<SellerAuthProps> = ({ onAuthSuccess }) => {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Invalid or expired OTP code.');
+        throw new Error(data.error || 'Invalid verification code.');
       }
 
-      // Store in localStorage
       localStorage.setItem('streetverse_seller_token', data.token);
       localStorage.setItem('streetverse_seller_merchant', JSON.stringify(data.merchant));
-
       onAuthSuccess(data.merchant, data.token);
     } catch (err: any) {
       setError(err.message);
@@ -160,7 +133,6 @@ export const SellerAuth: React.FC<SellerAuthProps> = ({ onAuthSuccess }) => {
     }
   };
 
-  // Resend OTP
   const handleResendOtp = async () => {
     if (resendCooldown > 0) return;
     setError(null);
@@ -173,7 +145,7 @@ export const SellerAuth: React.FC<SellerAuthProps> = ({ onAuthSuccess }) => {
         body: JSON.stringify({ scope: 'seller', email: emailForOtp })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to resend OTP.');
+      if (!res.ok) throw new Error(data.error || 'Failed to resend code.');
       setSuccessMsg('A new verification code has been dispatched.');
       startCooldown();
     } catch (err: any) {
@@ -197,369 +169,562 @@ export const SellerAuth: React.FC<SellerAuthProps> = ({ onAuthSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center p-4">
-      <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-[#EBE5DA] overflow-hidden">
+    <div className="auth-wrapper">
+      <div className="auth-card">
         
-        {/* Header Banner */}
-        <div className="bg-[#2A4736] p-6 text-white text-center relative">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-white/10 mb-3 backdrop-blur-sm">
-            <Store className="w-6 h-6 text-[#D7E8DC]" />
+        {/* Clean Header */}
+        <div className="auth-header">
+          <div className="brand-badge">
+            <Store size={24} color="#FFF" />
           </div>
-          <h1 className="text-2xl font-serif font-bold tracking-tight">StreetVerse Merchant</h1>
-          <p className="text-xs text-[#D7E8DC]/90 mt-1">
-            Vendor Dashboard &bull; Live Inventory, Appointments & AI Restock Alerts
+          <h1 className="brand-title">Merchant Portal</h1>
+          <p className="brand-subtitle">
+            {step === 'OTP' ? 'Enter security verification code' : isLogin ? 'Sign in to manage your store' : 'Register your local business'}
           </p>
-
-          {/* Demo Quick Fills */}
-          <div className="mt-3 flex items-center justify-center gap-1.5 flex-wrap">
-            <span className="text-[10px] text-white/70">Demo Logins:</span>
-            <button
-              type="button"
-              onClick={() => handleQuickFill('grocery')}
-              className="text-[10px] bg-white/15 hover:bg-white/25 text-white px-2 py-0.5 rounded-full transition-colors"
-            >
-              Grocery Mart
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickFill('salon')}
-              className="text-[10px] bg-white/15 hover:bg-white/25 text-white px-2 py-0.5 rounded-full transition-colors"
-            >
-              Salon & Spa
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickFill('pharmacy')}
-              className="text-[10px] bg-white/15 hover:bg-white/25 text-white px-2 py-0.5 rounded-full transition-colors"
-            >
-              Pharmacy
-            </button>
-          </div>
         </div>
 
-        {/* Tab Toggle */}
+        {/* Tab Switcher */}
         {step === 'CREDENTIALS' && (
-          <div className="flex border-b border-[#EBE5DA] bg-[#F7F3EB]">
+          <div className="tab-container">
             <button
               type="button"
               onClick={() => { setIsLogin(true); setError(null); }}
-              className={`flex-1 py-3 text-sm font-medium transition-colors ${
-                isLogin ? 'bg-white text-[#2A4736] border-b-2 border-[#2A4736]' : 'text-[#7D6E5D] hover:text-[#2C241B]'
-              }`}
+              className={`tab-btn ${isLogin ? 'active' : ''}`}
             >
-              Merchant Login
+              Sign In
             </button>
             <button
               type="button"
               onClick={() => { setIsLogin(false); setError(null); }}
-              className={`flex-1 py-3 text-sm font-medium transition-colors ${
-                !isLogin ? 'bg-white text-[#2A4736] border-b-2 border-[#2A4736]' : 'text-[#7D6E5D] hover:text-[#2C241B]'
-              }`}
+              className={`tab-btn ${!isLogin ? 'active' : ''}`}
             >
-              Register New Store
+              Register Store
             </button>
           </div>
         )}
 
-        <div className="p-6">
-          {/* Alerts */}
-          {error && (
-            <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2 animate-fadeIn">
-              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-              <span>{error}</span>
-            </div>
-          )}
+        {/* Status Alerts */}
+        {error && (
+          <div className="alert-box error">
+            <AlertCircle size={16} />
+            <span>{error}</span>
+          </div>
+        )}
 
-          {successMsg && (
-            <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-start gap-2 animate-fadeIn">
-              <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" />
-              <span>{successMsg}</span>
-            </div>
-          )}
+        {successMsg && (
+          <div className="alert-box success">
+            <CheckCircle2 size={16} />
+            <span>{successMsg}</span>
+          </div>
+        )}
 
-          {/* Step 1: Credentials Form */}
-          {step === 'CREDENTIALS' && (
-            <form onSubmit={handleSubmitCredentials} className="space-y-3.5">
-              {isLogin ? (
-                // Login View
-                <>
-                  <div>
-                    <label className="block text-xs font-semibold text-[#5D5043] mb-1">Owner Email or Registered Phone</label>
-                    <div className="relative">
-                      <Mail className="w-4 h-4 text-[#A89885] absolute left-3 top-3" />
-                      <input
-                        type="text"
-                        required
-                        value={identifier}
-                        onChange={(e) => setIdentifier(e.target.value)}
-                        placeholder="greenvalley@streetverse.local or +919876543210"
-                        className="w-full pl-9 pr-3 py-2 text-sm border border-[#D9CFC1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2A4736] bg-[#FFFDF9]"
-                      />
-                    </div>
+        {/* Form View */}
+        {step === 'CREDENTIALS' && (
+          <form onSubmit={handleSubmitCredentials} className="auth-form">
+            {isLogin ? (
+              <>
+                <div className="form-group">
+                  <label className="form-label">Owner Email or Phone</label>
+                  <input
+                    type="text"
+                    required
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    placeholder="greenvalley@streetverse.local"
+                    className="form-input"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Password</label>
+                  <div className="input-with-icon">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="form-input"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="eye-btn"
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="form-group">
+                  <label className="form-label">Store / Business Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={businessName}
+                    onChange={(e) => setBusinessName(e.target.value)}
+                    placeholder="e.g. Pune Organics Mart"
+                    className="form-input"
+                  />
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group flex-1">
+                    <label className="form-label">Category</label>
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      className="form-input"
+                    >
+                      <option value="GROCERY">Grocery</option>
+                      <option value="SALON">Salon</option>
+                      <option value="PHARMACY">Pharmacy</option>
+                      <option value="RESTAURANT">Restaurant</option>
+                      <option value="HARDWARE">Hardware</option>
+                    </select>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-[#5D5043] mb-1">Account Password</label>
-                    <div className="relative">
-                      <Lock className="w-4 h-4 text-[#A89885] absolute left-3 top-3" />
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        required
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="w-full pl-9 pr-10 py-2 text-sm border border-[#D9CFC1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2A4736] bg-[#FFFDF9]"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-3 text-[#A89885] hover:text-[#5D5043]"
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
+                  <div className="form-group flex-1">
+                    <label className="form-label">UPI ID (VPA)</label>
+                    <input
+                      type="text"
+                      required
+                      value={upiVpa}
+                      onChange={(e) => setUpiVpa(e.target.value)}
+                      placeholder="store@okhdfcbank"
+                      className="form-input"
+                    />
                   </div>
-                </>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group flex-1">
+                    <label className="form-label">Owner Phone</label>
+                    <input
+                      type="tel"
+                      required
+                      value={ownerPhone}
+                      onChange={(e) => setOwnerPhone(e.target.value)}
+                      placeholder="+919876543210"
+                      className="form-input"
+                    />
+                  </div>
+
+                  <div className="form-group flex-1">
+                    <label className="form-label">Owner Email</label>
+                    <input
+                      type="email"
+                      required
+                      value={ownerEmail}
+                      onChange={(e) => setOwnerEmail(e.target.value)}
+                      placeholder="owner@store.com"
+                      className="form-input"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Password</label>
+                  <div className="input-with-icon">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Min 8 characters"
+                      className="form-input"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="eye-btn"
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group flex-2">
+                    <label className="form-label">Store Address</label>
+                    <input
+                      type="text"
+                      required
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="Shop 4, Mayur Colony, Kothrud"
+                      className="form-input"
+                    />
+                  </div>
+                  <div className="form-group flex-1">
+                    <label className="form-label">Pincode</label>
+                    <input
+                      type="text"
+                      required
+                      value={pincode}
+                      onChange={(e) => setPincode(e.target.value)}
+                      placeholder="411038"
+                      className="form-input"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            <button type="submit" disabled={loading} className="primary-btn">
+              {loading ? (
+                <RotateCw size={16} className="spin" />
               ) : (
-                // Merchant Registration View
                 <>
-                  <div>
-                    <label className="block text-xs font-semibold text-[#5D5043] mb-1">Business / Store Name</label>
-                    <div className="relative">
-                      <Building2 className="w-4 h-4 text-[#A89885] absolute left-3 top-3" />
-                      <input
-                        type="text"
-                        required
-                        value={businessName}
-                        onChange={(e) => setBusinessName(e.target.value)}
-                        placeholder="e.g. Pune Organics Mart"
-                        className="w-full pl-9 pr-3 py-2 text-sm border border-[#D9CFC1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2A4736] bg-[#FFFDF9]"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-[#5D5043] mb-1">Category</label>
-                      <select
-                        value={category}
-                        onChange={(e) => setCategory(e.target.value)}
-                        className="w-full px-3 py-2 text-sm border border-[#D9CFC1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2A4736] bg-[#FFFDF9]"
-                      >
-                        <option value="GROCERY">Grocery & Supermarket</option>
-                        <option value="SALON">Salon & Grooming</option>
-                        <option value="PHARMACY">Pharmacy & Health</option>
-                        <option value="RESTAURANT">Restaurant & Cafe</option>
-                        <option value="FLORIST">Florist & Nursery</option>
-                        <option value="HARDWARE">Hardware & Electrical</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-[#5D5043] mb-1">Vendor UPI ID (VPA)</label>
-                      <div className="relative">
-                        <CreditCard className="w-4 h-4 text-[#A89885] absolute left-3 top-3" />
-                        <input
-                          type="text"
-                          required
-                          value={upiVpa}
-                          onChange={(e) => setUpiVpa(e.target.value)}
-                          placeholder="merchant@upi"
-                          className="w-full pl-9 pr-3 py-2 text-sm border border-[#D9CFC1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2A4736] bg-[#FFFDF9]"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-[#5D5043] mb-1">Owner Phone</label>
-                      <div className="relative">
-                        <Phone className="w-4 h-4 text-[#A89885] absolute left-3 top-3" />
-                        <input
-                          type="tel"
-                          required
-                          value={ownerPhone}
-                          onChange={(e) => setOwnerPhone(e.target.value)}
-                          placeholder="+919876543210"
-                          className="w-full pl-9 pr-3 py-2 text-sm border border-[#D9CFC1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2A4736] bg-[#FFFDF9]"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-[#5D5043] mb-1">Owner Email</label>
-                      <div className="relative">
-                        <Mail className="w-4 h-4 text-[#A89885] absolute left-3 top-3" />
-                        <input
-                          type="email"
-                          required
-                          value={ownerEmail}
-                          onChange={(e) => setOwnerEmail(e.target.value)}
-                          placeholder="owner@store.com"
-                          className="w-full pl-9 pr-3 py-2 text-sm border border-[#D9CFC1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2A4736] bg-[#FFFDF9]"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-[#5D5043] mb-1">Password</label>
-                    <div className="relative">
-                      <Lock className="w-4 h-4 text-[#A89885] absolute left-3 top-3" />
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        required
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Password123!"
-                        className="w-full pl-9 pr-10 py-2 text-sm border border-[#D9CFC1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2A4736] bg-[#FFFDF9]"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-3 text-[#A89885] hover:text-[#5D5043]"
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-[#5D5043] mb-1">Shop Address & Pincode</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      <input
-                        type="text"
-                        required
-                        value={address}
-                        onChange={(e) => setAddress(e.target.value)}
-                        placeholder="Shop 1, Kothrud, Pune"
-                        className="col-span-2 px-3 py-2 text-sm border border-[#D9CFC1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2A4736] bg-[#FFFDF9]"
-                      />
-                      <input
-                        type="text"
-                        required
-                        value={pincode}
-                        onChange={(e) => setPincode(e.target.value)}
-                        placeholder="411038"
-                        className="px-3 py-2 text-sm border border-[#D9CFC1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2A4736] bg-[#FFFDF9]"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-medium text-[#7D6E5D] mb-0.5">Latitude</label>
-                      <input
-                        type="number"
-                        step="0.0001"
-                        value={latitude}
-                        onChange={(e) => setLatitude(e.target.value)}
-                        className="w-full px-3 py-1.5 text-xs border border-[#D9CFC1] rounded-xl focus:outline-none bg-[#FFFDF9]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-medium text-[#7D6E5D] mb-0.5">Longitude</label>
-                      <input
-                        type="number"
-                        step="0.0001"
-                        value={longitude}
-                        onChange={(e) => setLongitude(e.target.value)}
-                        className="w-full px-3 py-1.5 text-xs border border-[#D9CFC1] rounded-xl focus:outline-none bg-[#FFFDF9]"
-                      />
-                    </div>
-                  </div>
+                  <span>{isLogin ? 'Continue' : 'Register Store'}</span>
+                  <ArrowRight size={16} />
                 </>
               )}
+            </button>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 px-4 bg-[#2A4736] hover:bg-[#1E3326] text-white font-medium rounded-xl text-sm transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 mt-4 disabled:opacity-50"
-              >
-                {loading ? (
-                  <>
-                    <RotateCw className="w-4 h-4 animate-spin" /> Verifying...
-                  </>
-                ) : (
-                  <>
-                    {isLogin ? 'Verify Merchant & Send OTP' : 'Register Store & Send OTP'} <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
+            {/* Discreet Demo Fill */}
+            <div className="demo-footer">
+              <button type="button" onClick={handleDemoFill} className="demo-link">
+                Use Demo Merchant Account
               </button>
-            </form>
-          )}
+            </div>
+          </form>
+        )}
 
-          {/* Step 2: OTP Verification */}
-          {step === 'OTP' && (
-            <form onSubmit={handleVerifyOtp} className="space-y-4 animate-fadeIn">
-              <div className="text-center mb-4">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[#E5ECE7] text-[#2A4736] mb-2">
-                  <KeyRound className="w-6 h-6" />
-                </div>
-                <h3 className="text-base font-semibold text-[#2C241B]">Enter Merchant Security Code</h3>
-                <p className="text-xs text-[#7D6E5D] mt-1">
-                  6-digit code sent to owner email: <br />
-                  <strong className="text-[#2C241B]">{emailForOtp}</strong>
-                </p>
-              </div>
+        {/* Step 2: 6-Digit OTP */}
+        {step === 'OTP' && (
+          <form onSubmit={handleVerifyOtp} className="auth-form">
+            <p className="otp-desc">
+              Security verification code sent to <strong>{emailForOtp}</strong>
+            </p>
 
-              <div>
-                <input
-                  type="text"
-                  maxLength={6}
-                  required
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                  placeholder="000000"
-                  className="w-full text-center tracking-[10px] text-2xl font-mono py-3 border border-[#D9CFC1] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2A4736] bg-[#FFFDF9]"
-                />
-              </div>
+            <div className="form-group">
+              <input
+                type="text"
+                maxLength={6}
+                required
+                autoFocus
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                placeholder="000000"
+                className="otp-input"
+              />
+            </div>
 
+            <button type="submit" disabled={loading || otp.length < 6} className="primary-btn">
+              {loading ? <RotateCw size={16} className="spin" /> : <span>Verify & Access Dashboard</span>}
+            </button>
+
+            <div className="otp-actions">
               <button
-                type="submit"
-                disabled={loading || otp.length < 6}
-                className="w-full py-3 px-4 bg-[#2A4736] hover:bg-[#1E3326] text-white font-medium rounded-xl text-sm transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
+                type="button"
+                onClick={() => setStep('CREDENTIALS')}
+                className="back-btn"
               >
-                {loading ? (
-                  <>
-                    <RotateCw className="w-4 h-4 animate-spin" /> Authenticating...
-                  </>
-                ) : (
-                  <>
-                    Verify & Enter Merchant Dashboard <CheckCircle2 className="w-4 h-4" />
-                  </>
-                )}
+                &larr; Back
               </button>
-
-              <div className="flex items-center justify-between pt-3 text-xs text-[#7D6E5D]">
-                <button
-                  type="button"
-                  onClick={() => setStep('CREDENTIALS')}
-                  className="hover:text-[#2C241B] transition-colors"
-                >
-                  &larr; Back to login
-                </button>
-
-                <button
-                  type="button"
-                  disabled={resendCooldown > 0 || loading}
-                  onClick={handleResendOtp}
-                  className="text-[#2A4736] font-semibold hover:underline disabled:opacity-50"
-                >
-                  {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Code'}
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* Security Notice */}
-          <div className="mt-6 pt-4 border-t border-[#EBE5DA] text-center text-[11px] text-[#A89885] flex items-center justify-center gap-1.5">
-            <ShieldCheck className="w-3 h-3 text-[#2A4736]" /> Zero Customer PII Exposed &bull; Encrypted Database Connection
-          </div>
-        </div>
+              <button
+                type="button"
+                disabled={resendCooldown > 0 || loading}
+                onClick={handleResendOtp}
+                className="resend-btn"
+              >
+                {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
+              </button>
+            </div>
+          </form>
+        )}
 
       </div>
+
+      <style jsx>{`
+        .auth-wrapper {
+          min-height: 100vh;
+          background-color: #FAF7F2;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 1.5rem;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        }
+
+        .auth-card {
+          width: 100%;
+          max-width: 440px;
+          background: #FFFFFF;
+          border: 1px solid #E7E3DC;
+          border-radius: 20px;
+          box-shadow: 0 16px 36px -12px rgba(41, 37, 36, 0.08);
+          padding: 2.25rem 2rem;
+        }
+
+        .auth-header {
+          text-align: center;
+          margin-bottom: 1.75rem;
+        }
+
+        .brand-badge {
+          width: 48px;
+          height: 48px;
+          background: linear-gradient(135deg, #059669, #047857);
+          border-radius: 14px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 6px 14px rgba(5, 150, 105, 0.25);
+          margin-bottom: 0.85rem;
+        }
+
+        .brand-title {
+          font-size: 1.5rem;
+          font-weight: 800;
+          color: #292524;
+          margin: 0;
+          letter-spacing: -0.02em;
+        }
+
+        .brand-subtitle {
+          font-size: 0.85rem;
+          color: #78716C;
+          margin-top: 0.35rem;
+        }
+
+        .tab-container {
+          display: flex;
+          background: #F4EFEB;
+          border-radius: 12px;
+          padding: 3px;
+          margin-bottom: 1.5rem;
+        }
+
+        .tab-btn {
+          flex: 1;
+          padding: 0.55rem;
+          font-size: 0.82rem;
+          font-weight: 600;
+          color: #78716C;
+          background: transparent;
+          border: none;
+          border-radius: 9px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .tab-btn.active {
+          background: #FFFFFF;
+          color: #292524;
+          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+        }
+
+        .auth-form {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+
+        .form-row {
+          display: flex;
+          gap: 0.75rem;
+        }
+
+        .flex-1 { flex: 1; }
+        .flex-2 { flex: 2; }
+
+        .form-group {
+          display: flex;
+          flex-direction: column;
+          gap: 0.35rem;
+        }
+
+        .form-label {
+          font-size: 0.78rem;
+          font-weight: 600;
+          color: #57534E;
+        }
+
+        .form-input {
+          width: 100%;
+          padding: 0.7rem 0.9rem;
+          font-size: 0.88rem;
+          color: #292524;
+          background: #FAF8F5;
+          border: 1px solid #E7E3DC;
+          border-radius: 11px;
+          outline: none;
+          transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-input:focus {
+          border-color: #059669;
+          box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
+          background: #FFFFFF;
+        }
+
+        .input-with-icon {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
+
+        .eye-btn {
+          position: absolute;
+          right: 0.85rem;
+          background: transparent;
+          border: none;
+          color: #A8A29E;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          padding: 0;
+        }
+
+        .eye-btn:hover {
+          color: #57534E;
+        }
+
+        .primary-btn {
+          margin-top: 0.5rem;
+          width: 100%;
+          padding: 0.75rem;
+          background: #059669;
+          color: #FFFFFF;
+          border: none;
+          border-radius: 12px;
+          font-size: 0.9rem;
+          font-weight: 600;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          transition: all 0.2s ease;
+          box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2);
+        }
+
+        .primary-btn:hover:not(:disabled) {
+          background: #047857;
+          transform: translateY(-1px);
+          box-shadow: 0 6px 16px rgba(5, 150, 105, 0.3);
+        }
+
+        .primary-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .demo-footer {
+          text-align: center;
+          margin-top: 0.25rem;
+        }
+
+        .demo-link {
+          background: transparent;
+          border: none;
+          color: #A8A29E;
+          font-size: 0.75rem;
+          cursor: pointer;
+          text-decoration: underline;
+        }
+
+        .demo-link:hover {
+          color: #059669;
+        }
+
+        .otp-desc {
+          text-align: center;
+          font-size: 0.82rem;
+          color: #78716C;
+          margin: 0;
+        }
+
+        .otp-input {
+          width: 100%;
+          text-align: center;
+          letter-spacing: 12px;
+          font-family: monospace;
+          font-size: 1.6rem;
+          font-weight: 700;
+          color: #292524;
+          padding: 0.65rem 0.5rem;
+          background: #FAF8F5;
+          border: 1px solid #E7E3DC;
+          border-radius: 12px;
+          outline: none;
+        }
+
+        .otp-input:focus {
+          border-color: #059669;
+          box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
+          background: #FFFFFF;
+        }
+
+        .otp-actions {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 0.8rem;
+          margin-top: 0.25rem;
+        }
+
+        .back-btn {
+          background: transparent;
+          border: none;
+          color: #78716C;
+          cursor: pointer;
+          padding: 0;
+        }
+
+        .back-btn:hover {
+          color: #292524;
+        }
+
+        .resend-btn {
+          background: transparent;
+          border: none;
+          color: #059669;
+          font-weight: 600;
+          cursor: pointer;
+          padding: 0;
+        }
+
+        .resend-btn:disabled {
+          color: #A8A29E;
+          cursor: not-allowed;
+        }
+
+        .alert-box {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.65rem 0.85rem;
+          border-radius: 10px;
+          font-size: 0.78rem;
+          margin-bottom: 1rem;
+        }
+
+        .alert-box.error {
+          background: #FEF2F2;
+          color: #B91C1C;
+          border: 1px solid #FEE2E2;
+        }
+
+        .alert-box.success {
+          background: #ECFDF5;
+          color: #047857;
+          border: 1px solid #D1FAE5;
+        }
+
+        :global(.spin) {
+          animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };
