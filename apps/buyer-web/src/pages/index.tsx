@@ -373,6 +373,7 @@ export default function BuyerHome() {
             </div>
           ))}
         </div>
+        )}
 
         {/* 5-Minute Booking Lock Modal */}
         {bookingState && (
