@@ -7,6 +7,8 @@ import Redis from 'ioredis';
 import pg from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import { createAuthRouter } from './routes/auth';
+import { createUserRouter } from './routes/user';
+import { createSearchRouter } from './routes/search';
 
 import path from 'path';
 
@@ -43,6 +45,12 @@ const merchantPool = new pg.Pool({
 
 // Mount StreetVerse Authentication Router (Buyer & Seller)
 app.use('/api/v1/auth', createAuthRouter(customerPool, merchantPool));
+
+// Mount User Settings Router
+app.use('/api/user', createUserRouter(customerPool));
+
+// Mount AI Search Proxy Router
+app.use('/api/v1/search', createSearchRouter());
 
 // =========================================================================
 // 1. INTER-SERVICE BOOKING LOCK CONTRACT (5-Minute Atomic Holding Lock)

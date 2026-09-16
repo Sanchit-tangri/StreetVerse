@@ -12,9 +12,13 @@ import {
   CheckCircle2, 
   AlertCircle,
   LogOut,
-  UserCheck
+  UserCheck,
+  ChevronDown
 } from 'lucide-react';
 import { BuyerAuth } from '../components/auth/BuyerAuth';
+import { ProfileMenu } from '../components/dashboard/ProfileMenu';
+import { ProfileSettingsModal } from '../components/dashboard/ProfileSettingsModal';
+import axios from 'axios';
 
 interface MockShop {
   id: string;
@@ -27,7 +31,7 @@ interface MockShop {
   availableSlot: string;
 }
 
-const mockShops: MockShop[] = [
+const defaultShops: MockShop[] = [
   {
     id: 'm1',
     name: 'Green Valley Daily Needs & Organic Grocery',
@@ -65,6 +69,8 @@ export default function BuyerHome() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [shops, setShops] = useState<MockShop[]>(defaultShops);
   const [activeTab, setActiveTab] = useState<'DISCOVER' | 'BOOKING' | 'AI_ASSISTANT'>('DISCOVER');
   const [bookingState, setBookingState] = useState<{
     locked: boolean;
@@ -73,6 +79,69 @@ export default function BuyerHome() {
     upiUrl: string;
     confirmed: boolean;
   } | null>(null);
+
+  // Profile State
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+
+  // Location State
+  const [locationName, setLocationName] = useState('Fetching location...');
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [userCoords, setUserCoords] = useState<{lat: number, lng: number} | null>(null);
+
+  const fetchLocation = () => {
+    setLocationName('Detecting location...');
+    setLocationError(null);
+    if (!navigator.geolocation) {
+      setLocationName('Location not supported');
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        setUserCoords({ lat: latitude, lng: longitude });
+        try {
+          const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+          if (!apiKey) {
+            setLocationName(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+            return;
+          }
+          const res = await axios.get(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`);
+          const results = res.data.results;
+          if (results && results.length > 0) {
+            // Try to find a neighborhood or locality
+            const addressComponents = results[0].address_components;
+            let locality = '';
+            let sublocality = '';
+            for (const comp of addressComponents) {
+              if (comp.types.includes('sublocality')) sublocality = comp.long_name;
+              if (comp.types.includes('locality')) locality = comp.long_name;
+            }
+            const displayName = sublocality ? `${sublocality}, ${locality}` : (locality || 'Current Location');
+            setLocationName(displayName);
+          } else {
+            setLocationName('Location found (no address)');
+          }
+        } catch (err) {
+          console.error(err);
+          setLocationName('Location found (offline)');
+        }
+      },
+      (error) => {
+        console.error(error);
+        setLocationName('Location access denied');
+        setLocationError('Please allow location access for hyperlocal results.');
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
+
+  useEffect(() => {
+    if (currentUser) {
+      fetchLocation();
+    }
+  }, [currentUser]);
 
   // Check persisted session on mount
   useEffect(() => {
@@ -131,6 +200,44 @@ export default function BuyerHome() {
     }
   };
 
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      setShops(defaultShops);
+      return;
+    }
+    setIsSearching(true);
+    try {
+      const res = await axios.post('http://localhost:5000/api/v1/search/hyperlocal', {
+        query: searchQuery,
+        latitude: userCoords?.lat || 18.5204, // Default to Pune if denied
+        longitude: userCoords?.lng || 73.8567,
+        max_radius_km: 5.0,
+        limit: 4
+      }, { withCredentials: true, headers: { 'ngrok-skip-browser-warning': 'true' } });
+
+      const results = res.data.results || [];
+      if (results.length > 0) {
+        const mappedShops: MockShop[] = results.map((r: any) => ({
+          id: r.item_id,
+          name: r.business_name,
+          category: r.category,
+          distance: r.distance_meters > 1000 ? `${(r.distance_meters / 1000).toFixed(1)}km away` : `${Math.round(r.distance_meters)}m away`,
+          rating: (Math.random() * (5 - 4) + 4).toFixed(1), // Mock rating
+          featuredItem: r.item_name,
+          price: r.price,
+          availableSlot: r.is_available ? 'Available Now' : 'Out of Stock'
+        }));
+        setShops(mappedShops);
+      } else {
+        setShops([]); // No results
+      }
+    } catch (err) {
+      console.error('Search error:', err);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
   return (
     <div style={{ backgroundColor: '#FAF7F2', minHeight: '100vh', color: '#292524', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
       <Head>
@@ -151,41 +258,59 @@ export default function BuyerHome() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#F3ECE2', padding: '0.4rem 0.9rem', borderRadius: 9999, fontSize: '0.85rem' }}>
-              <MapPin size={16} color="#D97706" />
-              <span style={{ fontWeight: 600 }}>Kothrud, Pune</span>
-            </div>
-
-            {/* Authenticated User Badge */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#FFF', border: '1px solid #E7E5E4', padding: '0.35rem 0.85rem', borderRadius: 9999, fontSize: '0.8rem' }}>
-              <UserCheck size={14} color="#16A34A" />
-              <span style={{ fontWeight: 600, color: '#292524' }}>{currentUser.fullName || currentUser.phone}</span>
-            </div>
-
-            {/* Logout Button */}
-            <button
-              onClick={handleLogout}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                backgroundColor: '#FEE2E2',
-                color: '#B91C1C',
-                border: 'none',
-                padding: '0.4rem 0.75rem',
-                borderRadius: 9999,
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-              title="Sign Out"
+            <div 
+              onClick={fetchLocation}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#F3ECE2', padding: '0.4rem 0.9rem', borderRadius: 9999, fontSize: '0.85rem', cursor: 'pointer' }}
+              title="Click to refresh location"
             >
-              <LogOut size={13} />
-              <span>Log Out</span>
-            </button>
+              <MapPin size={16} color={locationError ? "#DC2626" : "#D97706"} />
+              <span style={{ fontWeight: 600, color: locationError ? "#DC2626" : "inherit" }}>{locationName}</span>
+            </div>
+
+            {/* Authenticated User Badge & Dropdown */}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.5rem', 
+                  backgroundColor: '#FFF', 
+                  border: '1px solid #E7E5E4', 
+                  padding: '0.35rem 0.85rem', 
+                  borderRadius: 9999, 
+                  fontSize: '0.8rem',
+                  cursor: 'pointer'
+                }}
+              >
+                <UserCheck size={14} color="#16A34A" />
+                <span style={{ fontWeight: 600, color: '#292524' }}>{currentUser.fullName || currentUser.phone}</span>
+                <ChevronDown size={14} color="#78716C" />
+              </button>
+
+              {isProfileMenuOpen && (
+                <ProfileMenu 
+                  user={currentUser} 
+                  onLogout={handleLogout}
+                  onOpenSettings={() => setIsSettingsModalOpen(true)}
+                  onClose={() => setIsProfileMenuOpen(false)}
+                />
+              )}
+            </div>
           </div>
         </div>
       </header>
+
+      {isSettingsModalOpen && (
+        <ProfileSettingsModal 
+          user={currentUser}
+          onClose={() => setIsSettingsModalOpen(false)}
+          onUserUpdated={(user) => {
+            setCurrentUser(user);
+            localStorage.setItem('streetverse_buyer_user', JSON.stringify(user));
+          }}
+        />
+      )}
 
       {/* Main Content Area */}
       <main style={{ maxWidth: '1200px', margin: '2rem auto', padding: '0 1.5rem' }}>
@@ -199,22 +324,32 @@ export default function BuyerHome() {
               placeholder="Ask AI: 'Where can I find organic brown bread or book a salon haircut nearby?'" 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               style={{ width: '100%', border: 'none', outline: 'none', fontSize: '1rem', backgroundColor: 'transparent', color: '#292524' }}
             />
-            <button style={{ backgroundColor: '#D97706', color: '#FFF', border: 'none', borderRadius: 12, padding: '0.6rem 1.4rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-              <Sparkles size={16} /> Search Local
+            <button 
+              onClick={handleSearch}
+              disabled={isSearching}
+              style={{ backgroundColor: '#D97706', color: '#FFF', border: 'none', borderRadius: 12, padding: '0.6rem 1.4rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: isSearching ? 'not-allowed' : 'pointer', opacity: isSearching ? 0.7 : 1 }}
+            >
+              <Sparkles size={16} /> {isSearching ? 'Searching...' : 'Search Local'}
             </button>
           </div>
         </div>
 
         {/* Nearby Stores & Services */}
         <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem', color: '#292524' }}>
-          Nearby Neighborhood Stores & Services
+          {searchQuery && !isSearching ? `AI Results for "${searchQuery}"` : 'Nearby Neighborhood Stores & Services'}
         </h2>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
-          {mockShops.map((shop) => (
-            <div key={shop.id} style={{ backgroundColor: '#FFFDF9', border: '1px solid #E7E5E4', borderRadius: 16, padding: '1.5rem', transition: 'all 0.2s' }}>
+        {shops.length === 0 ? (
+          <div style={{ padding: '3rem', textAlign: 'center', color: '#78716C', backgroundColor: '#FFFDF9', borderRadius: 16, border: '1px solid #E7E5E4' }}>
+            No local businesses found matching your query. Try a different search!
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
+            {shops.map((shop) => (
+              <div key={shop.id} style={{ backgroundColor: '#FFFDF9', border: '1px solid #E7E5E4', borderRadius: 16, padding: '1.5rem', transition: 'all 0.2s' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
                 <div>
                   <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#D97706', letterSpacing: '0.05em' }}>{shop.category}</span>

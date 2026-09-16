@@ -5,6 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import asyncpg
 from dotenv import load_dotenv
+import requests
+import json
 
 load_dotenv()
 
@@ -80,30 +82,90 @@ async def search_hyperlocal_catalog(payload: HyperlocalSearchRequest):
     3. Returns proximity-weighted top results.
     """
     if not pool:
-        # Fallback simulation if local DB is starting
-        return HyperlocalSearchResponse(
-            query=payload.query,
-            radius_km=payload.max_radius_km,
-            total_found=1,
-            results=[
+        # Fallback to Gemini API for generative mock search results
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            return HyperlocalSearchResponse(
+                query=payload.query,
+                radius_km=payload.max_radius_km,
+                total_found=0,
+                results=[]
+            )
+            
+        prompt = f"""
+        Act as a hyperlocal search engine for a neighborhood commerce app.
+        The user is located at latitude {payload.latitude}, longitude {payload.longitude} and is looking for: "{payload.query}".
+        Search radius is {payload.max_radius_km} km.
+        
+        Generate {payload.limit} realistic mock local businesses and inventory items that match this query.
+        Return ONLY a valid JSON array of objects with these exact keys:
+        - item_id (string)
+        - item_name (string)
+        - category (string, e.g. GROCERY, SALON, PHARMACY)
+        - price (float, in INR)
+        - stock_quantity (integer)
+        - is_available (boolean)
+        - merchant_id (string)
+        - business_name (string)
+        - distance_meters (float, between 50 and {payload.max_radius_km * 1000})
+        - relevance_score (float, between 0.7 and 1.0)
+        
+        Do not include markdown blocks like ```json. Just output the raw JSON array.
+        """
+        
+        try:
+            res = requests.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}",
+                json={
+                    "contents": [{"parts": [{"text": prompt}]}],
+                    "generationConfig": {"temperature": 0.7}
+                },
+                timeout=10
+            )
+            data = res.json()
+            text_response = data['candidates'][0]['content']['parts'][0]['text'].strip()
+            
+            # Clean up potential markdown formatting
+            if text_response.startswith('```json'):
+                text_response = text_response[7:]
+            if text_response.startswith('```'):
+                text_response = text_response[3:]
+            if text_response.endswith('```'):
+                text_response = text_response[:-3]
+                
+            items = json.loads(text_response.strip())
+            
+            results = [
                 SearchResultItem(
-                    item_id="item-mock-001",
-                    item_name=f"Fresh Brown Bread (Match for '{payload.query}')",
-                    category="GROCERY",
-                    price=45.0,
-                    stock_quantity=12,
-                    is_available=True,
-                    merchant_id="merchant-mock-001",
-                    business_name="Green Valley Daily Needs",
-                    distance_meters=420.5,
-                    relevance_score=0.94
-                )
+                    item_id=str(r.get("item_id", "mock-1")),
+                    item_name=r.get("item_name", "Item"),
+                    category=r.get("category", "GENERAL"),
+                    price=float(r.get("price", 0.0)),
+                    stock_quantity=int(r.get("stock_quantity", 10)),
+                    is_available=bool(r.get("is_available", True)),
+                    merchant_id=str(r.get("merchant_id", "merch-1")),
+                    business_name=r.get("business_name", "Local Shop"),
+                    distance_meters=float(r.get("distance_meters", 100.0)),
+                    relevance_score=float(r.get("relevance_score", 0.9))
+                ) for r in items
             ]
-        )
+            
+            return HyperlocalSearchResponse(
+                query=payload.query,
+                radius_km=payload.max_radius_km,
+                total_found=len(results),
+                results=results
+            )
+        except Exception as e:
+            print(f"[Gemini Fallback Error]: {e}")
+            return HyperlocalSearchResponse(
+                query=payload.query,
+                radius_km=payload.max_radius_km,
+                total_found=0,
+                results=[]
+            )
 
-    # In production with OpenAI/Gemini:
-    # query_vector = await generate_embedding(payload.query) # 1536 floats
-    # For baseline SQL contract verification, we demonstrate the PostGIS + pgvector query:
+    # In production with real DB:
     query_sql = """
         SELECT 
             i.id AS item_id,
@@ -161,7 +223,6 @@ async def search_hyperlocal_catalog(payload: HyperlocalSearchRequest):
                 results=results
             )
     except Exception as e:
-        # Graceful fallback reporting
         print(f"[RAG Query Error]: {e}")
         return HyperlocalSearchResponse(
             query=payload.query,
