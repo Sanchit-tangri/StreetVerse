@@ -39,7 +39,12 @@ export const SellerAuth: React.FC<SellerAuthProps> = ({ onAuthSuccess }) => {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://unplowed-nutlike-antitoxic.ngrok-free.dev';
+
+  const defaultHeaders = {
+    'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true'
+  };
 
   const handleDemoFill = () => {
     setIsLogin(true);
@@ -57,7 +62,7 @@ export const SellerAuth: React.FC<SellerAuthProps> = ({ onAuthSuccess }) => {
       if (isLogin) {
         const res = await fetch(`${API_URL}/api/v1/auth/seller/login`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: defaultHeaders,
           body: JSON.stringify({ identifier, password })
         });
         const data = await res.json();
@@ -73,7 +78,7 @@ export const SellerAuth: React.FC<SellerAuthProps> = ({ onAuthSuccess }) => {
       } else {
         const res = await fetch(`${API_URL}/api/v1/auth/seller/register`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: defaultHeaders,
           body: JSON.stringify({
             business_name: businessName,
             category,
@@ -114,7 +119,7 @@ export const SellerAuth: React.FC<SellerAuthProps> = ({ onAuthSuccess }) => {
     try {
       const res = await fetch(`${API_URL}/api/v1/auth/seller/verify-otp`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: defaultHeaders,
         body: JSON.stringify({ email: emailForOtp, otp })
       });
       const data = await res.json();
@@ -141,7 +146,7 @@ export const SellerAuth: React.FC<SellerAuthProps> = ({ onAuthSuccess }) => {
     try {
       const res = await fetch(`${API_URL}/api/v1/auth/resend-otp`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: defaultHeaders,
         body: JSON.stringify({ scope: 'seller', email: emailForOtp })
       });
       const data = await res.json();

@@ -33,7 +33,12 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onAuthSuccess }) => {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://unplowed-nutlike-antitoxic.ngrok-free.dev';
+
+  const defaultHeaders = {
+    'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true'
+  };
 
   const handleDemoFill = () => {
     setIsLogin(true);
@@ -51,7 +56,7 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onAuthSuccess }) => {
       if (isLogin) {
         const res = await fetch(`${API_URL}/api/v1/auth/buyer/login`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: defaultHeaders,
           body: JSON.stringify({ identifier, password })
         });
         const data = await res.json();
@@ -67,7 +72,7 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onAuthSuccess }) => {
       } else {
         const res = await fetch(`${API_URL}/api/v1/auth/buyer/register`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: defaultHeaders,
           body: JSON.stringify({
             full_name: fullName,
             phone,
@@ -102,7 +107,7 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onAuthSuccess }) => {
     try {
       const res = await fetch(`${API_URL}/api/v1/auth/buyer/verify-otp`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: defaultHeaders,
         body: JSON.stringify({ email, otp })
       });
       const data = await res.json();
@@ -129,7 +134,7 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onAuthSuccess }) => {
     try {
       const res = await fetch(`${API_URL}/api/v1/auth/resend-otp`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: defaultHeaders,
         body: JSON.stringify({ scope: 'buyer', email })
       });
       const data = await res.json();
