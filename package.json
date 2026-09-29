@@ -15,7 +15,7 @@
     "dev:buyer": "npm --prefix apps/buyer-web run dev",
     "dev:seller": "npm --prefix apps/seller-web run dev",
     "dev:gateway": "npm --prefix services/api-gateway run dev",
-    "dev:ai": "uvicorn services.ai-agent-engine.main:app --host 0.0.0.0 --port 8000 --reload",
+    "dev:ai": ".venv\\Scripts\\uvicorn services.ai-agent-engine.main:app --host 0.0.0.0 --port 8000 --reload",
     "server:dev": "npm --prefix server run dev",
     "client:dev": "npm --prefix client run dev",
     "db:up": "docker compose up -d",
