@@ -23,7 +23,8 @@
     "tunnel": "powershell -ExecutionPolicy Bypass -File .\\start-tunnel.ps1 -Port 5000",
     "tunnel:ngrok": "ngrok http 5000 --url https://unplowed-nutlike-antitoxic.ngrok-free.dev",
     "tunnel:cloudflared": "cloudflared tunnel --url http://localhost:5000",
-    "test": "npx tsx test-cases/run-all-tests.ts"
+    "test": "npx tsx test-cases/run-all-tests.ts",
+    "test:all": "npx tsx tests/run-all.ts"
   },
   "keywords": [
     "hyperlocal-commerce",

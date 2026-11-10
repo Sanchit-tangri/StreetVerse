@@ -28,16 +28,17 @@ export function createSearchRouter(merchantPool?: any): Router {
         limit
       }, { timeout: 3500 });
 
-      if (response.data && Array.isArray(response.data.results)) {
+      if (response.data && Array.isArray(response.data.results) && response.data.results.length > 0) {
         return res.status(200).json(response.data);
       }
     } catch (err: any) {
-      console.warn(`[Search Gateway] AI Engine unreachable (${err.message}). Executing graceful fallback...`);
+      console.warn(`[Search Gateway] AI Engine notice (${err.message}). Executing direct database discovery...`);
     }
 
     // 2. Fallback: Query Merchant PostgreSQL DB directly if pool is provided & available
     if (merchantPool) {
       try {
+        const pattern = `%${query.trim()}%`;
         const dbRes = await merchantPool.query(
           `SELECT 
               i.id AS item_id,
@@ -47,16 +48,40 @@ export function createSearchRouter(merchantPool?: any): Router {
               i.stock_quantity,
               i.is_available,
               m.id AS merchant_id,
-              m.business_name
+              m.business_name,
+              round(earth_distance(ll_to_earth(m.latitude::float8, m.longitude::float8), ll_to_earth($1, $2))::numeric, 1)::float AS distance_meters,
+              0.95 AS relevance_score
            FROM inventory_items i
            JOIN merchants m ON i.merchant_id = m.id
-           WHERE (i.item_name ILIKE $1 OR i.category ILIKE $1 OR m.business_name ILIKE $1)
-           LIMIT $2;`,
-          [`%${query}%`, limit]
+           WHERE m.is_open = true
+             AND (i.item_name ILIKE $3 OR i.category ILIKE $3 OR m.business_name ILIKE $3)
+
+           UNION ALL
+
+           SELECT 
+              s.id AS item_id,
+              s.service_name AS item_name,
+              'SALON & SPA' AS category,
+              s.price::float,
+              1 AS stock_quantity,
+              (s.status = 'AVAILABLE') AS is_available,
+              m.id AS merchant_id,
+              m.business_name,
+              round(earth_distance(ll_to_earth(m.latitude::float8, m.longitude::float8), ll_to_earth($1, $2))::numeric, 1)::float AS distance_meters,
+              0.95 AS relevance_score
+           FROM service_slots s
+           JOIN merchants m ON s.merchant_id = m.id
+           WHERE m.is_open = true
+             AND s.status = 'AVAILABLE'
+             AND (s.service_name ILIKE $3 OR m.business_name ILIKE $3 OR m.category ILIKE $3)
+
+           ORDER BY relevance_score DESC, distance_meters ASC
+           LIMIT $4;`,
+          [Number(latitude), Number(longitude), pattern, Number(limit)]
         );
 
         if (dbRes.rows && dbRes.rows.length > 0) {
-          const results = dbRes.rows.map((r: any, idx: number) => ({
+          const results = dbRes.rows.map((r: any) => ({
             item_id: String(r.item_id),
             item_name: r.item_name,
             category: r.category,
@@ -65,8 +90,8 @@ export function createSearchRouter(merchantPool?: any): Router {
             is_available: Boolean(r.is_available),
             merchant_id: String(r.merchant_id),
             business_name: r.business_name,
-            distance_meters: Math.round(250 + idx * 180),
-            relevance_score: 0.92
+            distance_meters: Number(r.distance_meters || 350),
+            relevance_score: Number(r.relevance_score || 0.95)
           }));
 
           return res.status(200).json({

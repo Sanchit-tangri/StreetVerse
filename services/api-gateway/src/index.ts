@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { createAuthRouter } from './routes/auth';
 import { createUserRouter } from './routes/user';
 import { createSearchRouter } from './routes/search';
+import { createResilientPool } from './db/resilientPool';
 
 import path from 'path';
 
@@ -32,16 +33,19 @@ const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6380', {
   lazyConnect: true,
   retryStrategy: (times) => Math.min(times * 100, 3000)
 });
+redis.on('error', () => {});
 
-// Customer DB Pool (Port 5433)
-const customerPool = new pg.Pool({
-  connectionString: process.env.CUSTOMER_DB_URL || 'postgresql://postgres:postgres@localhost:5433/streetverse_customer_db'
-});
+// Customer DB Pool (Port 5433) with automatic resilience
+const customerPool = createResilientPool(
+  process.env.CUSTOMER_DB_URL || 'postgresql://postgres:postgres@localhost:5433/streetverse_customer_db',
+  'customer'
+) as any;
 
-// Merchant DB Pool (Port 5434)
-const merchantPool = new pg.Pool({
-  connectionString: process.env.MERCHANT_DB_URL || 'postgresql://postgres:postgres@localhost:5434/streetverse_merchant_db'
-});
+// Merchant DB Pool (Port 5434) with automatic resilience
+const merchantPool = createResilientPool(
+  process.env.MERCHANT_DB_URL || 'postgresql://postgres:postgres@localhost:5434/streetverse_merchant_db',
+  'merchant'
+) as any;
 
 // Mount StreetVerse Authentication Router (Buyer & Seller)
 app.use('/api/v1/auth', createAuthRouter(customerPool, merchantPool));
