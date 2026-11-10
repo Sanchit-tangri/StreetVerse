@@ -1,9 +1,9 @@
 {
-  "executionTimestamp": "2026-11-10T17:38:08.553Z",
+  "executionTimestamp": "2026-11-10T17:46:28.442Z",
   "totalTests": 22,
   "passed": 22,
   "failed": 0,
-  "durationSeconds": 0.56,
+  "durationSeconds": 0.58,
   "environment": {
     "node": "v24.14.0",
     "platform": "win32",
@@ -16,7 +16,7 @@
       "suite": "Search Engine",
       "name": "Unit: Geospatial Haversine Great-Circle Proximity Calculation",
       "passed": true,
-      "durationMs": 0,
+      "durationMs": 1,
       "metadata": {
         "calculatedMeters": 262.2
       }
@@ -31,7 +31,7 @@
       "suite": "Search Engine",
       "name": "Unit: Dynamic Radius Geofence Boundary Enforcement (3km & 100m tests)",
       "passed": true,
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "suite": "Search Engine",
@@ -49,13 +49,13 @@
       "suite": "Authentication & Security",
       "name": "Unit: Cryptographic Salt Entropy & Bcrypt Verification",
       "passed": true,
-      "durationMs": 331
+      "durationMs": 352
     },
     {
       "suite": "Authentication & Security",
       "name": "Unit: Strict Input Format & Validation Rules (Email, Phone, Password)",
       "passed": true,
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "suite": "Authentication & Security",
@@ -67,7 +67,7 @@
       "suite": "Authentication & Security",
       "name": "Unit: JWT Signature Verification & Cryptographic Tamper Resistance",
       "passed": true,
-      "durationMs": 6
+      "durationMs": 4
     },
     {
       "suite": "Authentication & Security",
@@ -91,7 +91,7 @@
       "suite": "Booking & Slot Locking",
       "name": "Unit: 5-Minute TTL Automated Eviction (Abandoned Cart Recovery)",
       "passed": true,
-      "durationMs": 77
+      "durationMs": 75
     },
     {
       "suite": "Booking & Slot Locking",
@@ -115,7 +115,7 @@
       "suite": "Live Integration & Security",
       "name": "Integration: Live Customer DB (Port 5433) Connectivity & User State",
       "passed": true,
-      "durationMs": 43,
+      "durationMs": 40,
       "metadata": {
         "user": "Rahul Deshmukh"
       }
@@ -124,7 +124,7 @@
       "suite": "Live Integration & Security",
       "name": "Integration: Live Merchant DB (Port 5434) PostGIS Earthdistance Calculation",
       "passed": true,
-      "durationMs": 17,
+      "durationMs": 18,
       "metadata": {
         "merchant": "Green Valley Daily Needs & Organic Grocery",
         "distance": "0.0"
@@ -134,7 +134,7 @@
       "suite": "Live Integration & Security",
       "name": "Security Blackbox: SQL Injection Resistance - Tautology Vector (' OR '1'='1)",
       "passed": true,
-      "durationMs": 3
+      "durationMs": 2
     },
     {
       "suite": "Live Integration & Security",
@@ -152,7 +152,7 @@
       "suite": "Live Integration & Security",
       "name": "Integration: Seeded Customer Bcrypt Password Verification Contract",
       "passed": true,
-      "durationMs": 77
+      "durationMs": 78
     }
   ]
 }
