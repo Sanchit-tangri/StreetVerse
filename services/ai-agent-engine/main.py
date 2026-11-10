@@ -176,29 +176,57 @@ async def search_hyperlocal_catalog(payload: HyperlocalSearchRequest):
             i.is_available,
             m.id AS merchant_id,
             m.business_name,
-            ST_Distance(m.location, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography) AS distance_meters,
-            -- If embedding exists, compute cosine similarity, else default relevance
-            COALESCE(1 - (i.embedding <=> $3::vector), 0.90) AS relevance_score
+            round(earth_distance(ll_to_earth(m.latitude::float8, m.longitude::float8), ll_to_earth($1, $2))::numeric, 1)::float AS distance_meters,
+            CASE 
+                WHEN i.item_name ILIKE $4 THEN 0.98
+                WHEN i.category ILIKE $4 THEN 0.92
+                ELSE 0.85
+            END AS relevance_score
         FROM inventory_items i
         JOIN merchants m ON i.merchant_id = m.id
         WHERE m.is_open = true
           AND i.is_available = true
-          AND ST_DWithin(m.location, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography, $4)
-        ORDER BY distance_meters ASC, relevance_score DESC
+          AND earth_distance(ll_to_earth(m.latitude::float8, m.longitude::float8), ll_to_earth($1, $2)) <= $3
+          AND ($4 = '%%' OR i.item_name ILIKE $4 OR i.category ILIKE $4 OR m.business_name ILIKE $4 OR COALESCE(i.description, '') ILIKE $4)
+
+        UNION ALL
+
+        SELECT 
+            s.id AS item_id,
+            s.service_name AS item_name,
+            'SALON & SPA' AS category,
+            s.price::float,
+            1 AS stock_quantity,
+            (s.status = 'AVAILABLE') AS is_available,
+            m.id AS merchant_id,
+            m.business_name,
+            round(earth_distance(ll_to_earth(m.latitude::float8, m.longitude::float8), ll_to_earth($1, $2))::numeric, 1)::float AS distance_meters,
+            CASE 
+                WHEN s.service_name ILIKE $4 THEN 0.98
+                WHEN m.business_name ILIKE $4 THEN 0.90
+                ELSE 0.85
+            END AS relevance_score
+        FROM service_slots s
+        JOIN merchants m ON s.merchant_id = m.id
+        WHERE m.is_open = true
+          AND s.status = 'AVAILABLE'
+          AND earth_distance(ll_to_earth(m.latitude::float8, m.longitude::float8), ll_to_earth($1, $2)) <= $3
+          AND ($4 = '%%' OR s.service_name ILIKE $4 OR m.business_name ILIKE $4 OR m.category ILIKE $4)
+
+        ORDER BY relevance_score DESC, distance_meters ASC
         LIMIT $5;
     """
     try:
         radius_meters = payload.max_radius_km * 1000.0
-        # Dummy vector of 1536 zeros for schema validation
-        dummy_vector = "[" + ",".join(["0.0"] * 1536) + "]"
+        pattern = f"%{payload.query.strip()}%" if payload.query.strip() else "%%"
 
         async with pool.acquire() as conn:
             rows = await conn.fetch(
                 query_sql, 
-                payload.longitude, 
                 payload.latitude, 
-                dummy_vector, 
+                payload.longitude, 
                 radius_meters, 
+                pattern,
                 payload.limit
             )
             

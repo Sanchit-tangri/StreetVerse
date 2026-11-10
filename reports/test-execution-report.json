@@ -1,0 +1,158 @@
+{
+  "executionTimestamp": "2026-11-10T17:38:08.553Z",
+  "totalTests": 22,
+  "passed": 22,
+  "failed": 0,
+  "durationSeconds": 0.56,
+  "environment": {
+    "node": "v24.14.0",
+    "platform": "win32",
+    "database1": "streetverse_customer_db (PostgreSQL 16, Port 5433)",
+    "database2": "streetverse_merchant_db (PostgreSQL 16 + PostGIS + pgvector, Port 5434)",
+    "cache": "streetverse_redis (Redis 7, Port 6380)"
+  },
+  "results": [
+    {
+      "suite": "Search Engine",
+      "name": "Unit: Geospatial Haversine Great-Circle Proximity Calculation",
+      "passed": true,
+      "durationMs": 0,
+      "metadata": {
+        "calculatedMeters": 262.2
+      }
+    },
+    {
+      "suite": "Search Engine",
+      "name": "Unit: Multi-Tiered Relevance Scoring Engine (Item, Category, Vendor)",
+      "passed": true,
+      "durationMs": 0
+    },
+    {
+      "suite": "Search Engine",
+      "name": "Unit: Dynamic Radius Geofence Boundary Enforcement (3km & 100m tests)",
+      "passed": true,
+      "durationMs": 1
+    },
+    {
+      "suite": "Search Engine",
+      "name": "Unit: Cross-Domain Multi-Category Discovery (Retail Products & Salon Services)",
+      "passed": true,
+      "durationMs": 0
+    },
+    {
+      "suite": "Search Engine",
+      "name": "Unit: Search Input Sanitization, SQL Boundary & Edge-Case Resilience",
+      "passed": true,
+      "durationMs": 0
+    },
+    {
+      "suite": "Authentication & Security",
+      "name": "Unit: Cryptographic Salt Entropy & Bcrypt Verification",
+      "passed": true,
+      "durationMs": 331
+    },
+    {
+      "suite": "Authentication & Security",
+      "name": "Unit: Strict Input Format & Validation Rules (Email, Phone, Password)",
+      "passed": true,
+      "durationMs": 1
+    },
+    {
+      "suite": "Authentication & Security",
+      "name": "Unit: Cryptographically Secure 6-Digit OTP Entropy Test (200 Invocations)",
+      "passed": true,
+      "durationMs": 1
+    },
+    {
+      "suite": "Authentication & Security",
+      "name": "Unit: JWT Signature Verification & Cryptographic Tamper Resistance",
+      "passed": true,
+      "durationMs": 6
+    },
+    {
+      "suite": "Authentication & Security",
+      "name": "Unit: Brute-Force Defense: 3-Attempt Maximum Lockout Policy",
+      "passed": true,
+      "durationMs": 0
+    },
+    {
+      "suite": "Booking & Slot Locking",
+      "name": "Unit: Redis NX Atomic Slot Reservation & Double-Booking Prevention",
+      "passed": true,
+      "durationMs": 0
+    },
+    {
+      "suite": "Booking & Slot Locking",
+      "name": "Unit: Tokenized Lock Release Contract on Payment Confirmation",
+      "passed": true,
+      "durationMs": 0
+    },
+    {
+      "suite": "Booking & Slot Locking",
+      "name": "Unit: 5-Minute TTL Automated Eviction (Abandoned Cart Recovery)",
+      "passed": true,
+      "durationMs": 77
+    },
+    {
+      "suite": "Booking & Slot Locking",
+      "name": "Unit: Dynamic NPCI-Compliant UPI QR Intent Generation",
+      "passed": true,
+      "durationMs": 0
+    },
+    {
+      "suite": "System Resilience & Isolation",
+      "name": "Unit: Strict Customer DB vs Merchant DB Data Isolation Contract",
+      "passed": true,
+      "durationMs": 0
+    },
+    {
+      "suite": "System Resilience & Isolation",
+      "name": "Unit: Graceful Service Degradation & Circuit Breaker State Machine",
+      "passed": true,
+      "durationMs": 0
+    },
+    {
+      "suite": "Live Integration & Security",
+      "name": "Integration: Live Customer DB (Port 5433) Connectivity & User State",
+      "passed": true,
+      "durationMs": 43,
+      "metadata": {
+        "user": "Rahul Deshmukh"
+      }
+    },
+    {
+      "suite": "Live Integration & Security",
+      "name": "Integration: Live Merchant DB (Port 5434) PostGIS Earthdistance Calculation",
+      "passed": true,
+      "durationMs": 17,
+      "metadata": {
+        "merchant": "Green Valley Daily Needs & Organic Grocery",
+        "distance": "0.0"
+      }
+    },
+    {
+      "suite": "Live Integration & Security",
+      "name": "Security Blackbox: SQL Injection Resistance - Tautology Vector (' OR '1'='1)",
+      "passed": true,
+      "durationMs": 3
+    },
+    {
+      "suite": "Live Integration & Security",
+      "name": "Security Blackbox: SQL Injection Resistance - Comment Vector (admin'--)",
+      "passed": true,
+      "durationMs": 1
+    },
+    {
+      "suite": "Live Integration & Security",
+      "name": "Security Blackbox: SQL Injection Resistance - Stacked Query Vector ('; DROP TABLE...)",
+      "passed": true,
+      "durationMs": 1
+    },
+    {
+      "suite": "Live Integration & Security",
+      "name": "Integration: Seeded Customer Bcrypt Password Verification Contract",
+      "passed": true,
+      "durationMs": 77
+    }
+  ]
+}
