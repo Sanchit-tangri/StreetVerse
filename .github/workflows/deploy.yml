@@ -42,7 +42,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r services/ai-agent-engine/requirements.txt
 
-      - name: Ensure Database Containers (Optional)
+      - name: Ensure Database Containers & Run Seed Migrations
         continue-on-error: true
         run: |
           $ErrorActionPreference = 'Continue'
@@ -51,6 +51,9 @@ jobs:
             if ($docker) {
               Write-Host "Attempting to start Docker containers..."
               docker compose up -d
+              
+              Write-Host "Syncing database schemas and seeding new merchants/items..."
+              node packages/database-schemas/seed.js
             } else {
               Write-Host "Docker not in PATH. Resilient database pool active."
             }

@@ -1,6 +1,6 @@
 # StreetVerse Automated Quality Assurance & Security Audit Report
 
-**Generated:** Mon, 23 Nov 2026 18:14:26 GMT  
+**Generated:** Mon, 23 Nov 2026 19:16:56 GMT  
 **Environment:** Dual PostgreSQL 16 (Customer DB + Merchant DB with PostGIS & pgvector) & Redis 7  
 **Scope:** Unit, Integration, Cryptographic Security, SQL Injection Resistance, and Geospatial Discovery  
 
@@ -10,10 +10,10 @@
 
 | Metric | Value |
 | :--- | :--- |
-| **Total Test Cases Executed** | **22** |
-| **Tests Passed** | **22 (100%)** |
+| **Total Test Cases Executed** | **23** |
+| **Tests Passed** | **23 (100%)** |
 | **Tests Failed** | **0 (0%)** |
-| **Execution Duration** | **0.76s** |
+| **Execution Duration** | **0.68s** |
 | **Audit Status** | **PASSED & ENTERPRISE READY** |
 
 ---
@@ -25,23 +25,24 @@
 - **[🟢 PASS]** `Search Engine` - **Unit: Dynamic Radius Geofence Boundary Enforcement (3km & 100m tests)** (1ms)
 - **[🟢 PASS]** `Search Engine` - **Unit: Cross-Domain Multi-Category Discovery (Retail Products & Salon Services)** (0ms)
 - **[🟢 PASS]** `Search Engine` - **Unit: Search Input Sanitization, SQL Boundary & Edge-Case Resilience** (0ms)
-- **[🟢 PASS]** `Authentication & Security` - **Unit: Cryptographic Salt Entropy & Bcrypt Verification** (554ms)
-- **[🟢 PASS]** `Authentication & Security` - **Unit: Strict Input Format & Validation Rules (Email, Phone, Password)** (0ms)
+- **[🟢 PASS]** `Authentication & Security` - **Unit: Cryptographic Salt Entropy & Bcrypt Verification** (483ms)
+- **[🟢 PASS]** `Authentication & Security` - **Unit: Strict Input Format & Validation Rules (Email, Phone, Password)** (1ms)
 - **[🟢 PASS]** `Authentication & Security` - **Unit: Cryptographically Secure 6-Digit OTP Entropy Test (200 Invocations)** (1ms)
-- **[🟢 PASS]** `Authentication & Security` - **Unit: JWT Signature Verification & Cryptographic Tamper Resistance** (15ms)
+- **[🟢 PASS]** `Authentication & Security` - **Unit: JWT Signature Verification & Cryptographic Tamper Resistance** (5ms)
 - **[🟢 PASS]** `Authentication & Security` - **Unit: Brute-Force Defense: 3-Attempt Maximum Lockout Policy** (0ms)
-- **[🟢 PASS]** `Booking & Slot Locking` - **Unit: Redis NX Atomic Slot Reservation & Double-Booking Prevention** (0ms)
+- **[🟢 PASS]** `Booking & Slot Locking` - **Unit: Redis NX Atomic Slot Reservation & Double-Booking Prevention** (1ms)
 - **[🟢 PASS]** `Booking & Slot Locking` - **Unit: Tokenized Lock Release Contract on Payment Confirmation** (0ms)
-- **[🟢 PASS]** `Booking & Slot Locking` - **Unit: 5-Minute TTL Automated Eviction (Abandoned Cart Recovery)** (69ms)
-- **[🟢 PASS]** `Booking & Slot Locking` - **Unit: Dynamic NPCI-Compliant UPI QR Intent Generation** (1ms)
+- **[🟢 PASS]** `Booking & Slot Locking` - **Unit: 5-Minute TTL Automated Eviction (Abandoned Cart Recovery)** (78ms)
+- **[🟢 PASS]** `Booking & Slot Locking` - **Unit: Dynamic NPCI-Compliant UPI QR Intent Generation** (0ms)
 - **[🟢 PASS]** `System Resilience & Isolation` - **Unit: Strict Customer DB vs Merchant DB Data Isolation Contract** (0ms)
 - **[🟢 PASS]** `System Resilience & Isolation` - **Unit: Graceful Service Degradation & Circuit Breaker State Machine** (0ms)
-- **[🟢 PASS]** `Live Integration & Security` - **Integration: Live Customer DB (Port 5433) Connectivity & User State** (16ms)
-- **[🟢 PASS]** `Live Integration & Security` - **Integration: Live Merchant DB (Port 5434) PostGIS Earthdistance Calculation** (3ms)
-- **[🟢 PASS]** `Live Integration & Security` - **Security Blackbox: SQL Injection Resistance - Tautology Vector (' OR '1'='1)** (3ms)
+- **[🟢 PASS]** `Live Integration & Security` - **Integration: Live Customer DB (Port 5433) Connectivity & User State** (13ms)
+- **[🟢 PASS]** `Live Integration & Security` - **Integration: Live Merchant DB (Port 5434) PostGIS Earthdistance Calculation** (4ms)
+- **[🟢 PASS]** `Live Integration & Security` - **Security Blackbox: SQL Injection Resistance - Tautology Vector (' OR '1'='1)** (4ms)
 - **[🟢 PASS]** `Live Integration & Security` - **Security Blackbox: SQL Injection Resistance - Comment Vector (admin'--)** (2ms)
 - **[🟢 PASS]** `Live Integration & Security` - **Security Blackbox: SQL Injection Resistance - Stacked Query Vector ('; DROP TABLE...)** (1ms)
-- **[🟢 PASS]** `Live Integration & Security` - **Integration: Seeded Customer Bcrypt Password Verification Contract** (84ms)
+- **[🟢 PASS]** `Live Integration & Security` - **Integration: Seeded Customer Bcrypt Password Verification Contract** (80ms)
+- **[🟢 PASS]** `Live Integration & Security` - **Integration: Live Merchant DB Peshwa Dum Biryani & Kebabs Discovery** (2ms)
 
 ---
 

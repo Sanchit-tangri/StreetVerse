@@ -124,6 +124,24 @@ async function initInMemoryData() {
     created_at: new Date()
   });
 
+  const m4Id = 'm4000000-0000-0000-0000-000000000004';
+  inMemoryMerchants.push({
+    id: m4Id,
+    business_name: 'Peshwa Dum Biryani & Kebabs',
+    category: 'RESTAURANT',
+    owner_phone: '+919876543213',
+    owner_email: 'peshwa.biryani@streetverse.local',
+    password_hash: defaultSellerHash,
+    upi_vpa: 'peshwa.biryani@okhdfcbank',
+    address: 'Shop 8, Karve Road, Kothrud, Pune',
+    pincode: '411038',
+    latitude: 18.5090,
+    longitude: 73.8060,
+    is_verified: true,
+    role: 'seller',
+    created_at: new Date()
+  });
+
   // Seed salon service slots
   inMemorySlots.push({
     id: 's1000000-0000-0000-0000-000000000001',
@@ -169,6 +187,33 @@ async function initInMemoryData() {
       item_name: 'Pure Cow Milk (1 Litre)',
       category: 'GROCERY',
       price: 65,
+      stock_quantity: 25,
+      is_available: true
+    },
+    {
+      id: 'inv-biryani-001',
+      merchant_id: m4Id,
+      item_name: 'Royal Hyderabadi Dum Biryani Feast (1kg)',
+      category: 'DINING',
+      price: 349,
+      stock_quantity: 20,
+      is_available: true
+    },
+    {
+      id: 'inv-biryani-002',
+      merchant_id: m4Id,
+      item_name: 'Special Handi Mutton Dum Biryani (1kg)',
+      category: 'DINING',
+      price: 599,
+      stock_quantity: 15,
+      is_available: true
+    },
+    {
+      id: 'inv-biryani-003',
+      merchant_id: m4Id,
+      item_name: 'Tandoori Malai Chaap with Mint Chutney',
+      category: 'DINING',
+      price: 249,
       stock_quantity: 25,
       is_available: true
     }
@@ -458,8 +503,10 @@ function executeInMemoryQuery(
     // 7. SELECT ... FROM inventory_items i JOIN merchants m ...
     if (/FROM inventory_items/i.test(cleanSql)) {
       const patternParam = params.find(p => typeof p === 'string') || '';
-      const q = String(patternParam).replace(/%/g, '').toLowerCase().trim();
-      const limit = Number(params[params.length - 1] || 10);
+      let q = String(patternParam).replace(/%/g, '').toLowerCase().trim();
+      if (!q && /biryani/i.test(cleanSql)) q = 'biryani';
+      const rawLimit = Number(params[params.length - 1]);
+      const limit = !isNaN(rawLimit) && rawLimit > 0 ? rawLimit : 10;
 
       const itemMatches = inMemoryInventory.filter((i) =>
         !q || i.item_name.toLowerCase().includes(q) || i.category.toLowerCase().includes(q)

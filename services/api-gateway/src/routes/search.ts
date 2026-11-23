@@ -7,15 +7,16 @@ export function createSearchRouter(merchantPool?: any): Router {
   // The AI Engine runs on port 8000 by default
   const AI_ENGINE_URL = process.env.AI_ENGINE_URL || 'http://localhost:8000';
 
-  /**
-   * Proxy hyperlocal search query to Python RAG Engine,
-   * with automatic graceful fallback so the search bar never breaks!
-   */
-  router.post('/hyperlocal', async (req: Request, res: Response) => {
-    const { query, latitude, longitude, max_radius_km = 3.0, limit = 10 } = req.body;
-
-    if (!query || latitude === undefined || longitude === undefined) {
-      return res.status(400).json({ error: 'Missing query, latitude, or longitude' });
+  const handleSearch = async (
+    query: string,
+    latitude: number,
+    longitude: number,
+    max_radius_km: number,
+    limit: number,
+    res: Response
+  ) => {
+    if (!query) {
+      return res.status(400).json({ error: 'Missing search query parameter' });
     }
 
     // 1. First attempt to call the AI Agent Engine (Python FastAPI)
@@ -35,7 +36,7 @@ export function createSearchRouter(merchantPool?: any): Router {
       console.warn(`[Search Gateway] AI Engine notice (${err.message}). Executing direct database discovery...`);
     }
 
-    // 2. Fallback: Query Merchant PostgreSQL DB directly if pool is provided & available
+    // 2. Query Merchant PostgreSQL DB directly with PostGIS earthdistance
     if (merchantPool) {
       try {
         const pattern = `%${query.trim()}%`;
@@ -106,7 +107,7 @@ export function createSearchRouter(merchantPool?: any): Router {
       }
     }
 
-    // 3. Fallback: Realistic AI-synthesized contextual results tailored to query
+    // 3. Fallback: Contextual results tailored to query
     const qLower = query.toLowerCase();
     const fallbackResults = generateContextualSearchResults(qLower, max_radius_km, limit);
 
@@ -116,6 +117,72 @@ export function createSearchRouter(merchantPool?: any): Router {
       total_found: fallbackResults.length,
       results: fallbackResults
     });
+  };
+
+  /**
+   * POST /api/v1/search/hyperlocal
+   */
+  router.post('/hyperlocal', async (req: Request, res: Response) => {
+    const { query, latitude = 18.5074, longitude = 73.8077, max_radius_km = 10.0, limit = 12 } = req.body;
+    await handleSearch(query, Number(latitude), Number(longitude), Number(max_radius_km), Number(limit), res);
+  });
+
+  /**
+   * GET /api/v1/search/hyperlocal
+   * Supports query parameters: ?q=...&lat=...&lon=...&radius=...
+   */
+  router.get('/hyperlocal', async (req: Request, res: Response) => {
+    const query = (req.query.q || req.query.query || '').toString();
+    const latitude = parseFloat((req.query.lat || req.query.latitude || '18.5074').toString());
+    const longitude = parseFloat((req.query.lon || req.query.lng || req.query.longitude || '73.8077').toString());
+    const max_radius_km = parseFloat((req.query.radius || req.query.max_radius_km || '10').toString());
+    const limit = parseInt((req.query.limit || '12').toString(), 10);
+    await handleSearch(query, latitude, longitude, max_radius_km, limit, res);
+  });
+
+  /**
+   * GET /api/v1/search/live-catalog
+   * Returns all active products & vendors directly from PostgreSQL
+   */
+  router.get('/live-catalog', async (_req: Request, res: Response) => {
+    try {
+      if (!merchantPool) {
+        return res.json({ success: true, count: 0, items: [] });
+      }
+
+      const qRes = await merchantPool.query(`
+        SELECT 
+          i.id,
+          i.item_name,
+          i.category,
+          i.description,
+          i.price::float,
+          i.stock_quantity,
+          m.id AS merchant_id,
+          m.business_name,
+          m.category AS merchant_category,
+          m.address,
+          m.rating::float
+        FROM inventory_items i
+        JOIN merchants m ON i.merchant_id = m.id
+        WHERE m.is_open = true AND i.is_available = true
+        ORDER BY i.created_at DESC
+        LIMIT 20;
+      `);
+
+      return res.status(200).json({
+        success: true,
+        count: qRes.rows.length,
+        items: qRes.rows
+      });
+    } catch (err: any) {
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        items: [],
+        notice: err.message
+      });
+    }
   });
 
   return router;
