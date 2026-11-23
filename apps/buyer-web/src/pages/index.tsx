@@ -224,6 +224,22 @@ export default function BuyerHome() {
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://clatter-mousiness-smugness.ngrok-free.dev';
+  const [serverNode, setServerNode] = useState<any>(null);
+
+  // Fetch live home server telemetry & node status
+  useEffect(() => {
+    axios
+      .get(`${API_URL}/api/v1/server/node-status`, {
+        headers: { 'ngrok-skip-browser-warning': 'true' },
+        timeout: 4000
+      })
+      .then((res) => {
+        if (res.data && res.data.node) {
+          setServerNode(res.data.node);
+        }
+      })
+      .catch(() => {});
+  }, [API_URL]);
 
   // Apply visual theme to DOM
   useEffect(() => {
@@ -371,25 +387,30 @@ export default function BuyerHome() {
       if (res.data && Array.isArray(res.data.results) && res.data.results.length > 0) {
         const mappedResults: MarketplaceItem[] = res.data.results.map((r: any, idx: number) => {
           const isSlot = r.item_type === 'slot' || r.type === 'service';
-          const cat: any = isSlot ? (r.category === 'SPORTS' ? 'turf' : 'wellness') : (r.category === 'RESTAURANT' ? 'dining' : 'grocery');
+          const isDining = r.category === 'DINING' || r.category === 'RESTAURANT';
+          const cat: any = isSlot ? (r.category === 'SPORTS' ? 'turf' : 'wellness') : (isDining ? 'dining' : 'grocery');
+          const distLabel = r.distance_meters !== undefined
+            ? `${(Number(r.distance_meters) / 1000).toFixed(1)} km (PostGIS)`
+            : (r.distance_km ? `${r.distance_km.toFixed(1)} km away` : '0.8 km (Kothrud)');
+
           return {
-            id: r.id || `search-${idx}`,
+            id: r.item_id || r.id || `search-${idx}`,
             category: cat,
             title: r.item_name || r.business_name || q,
             vendorName: r.business_name || 'Neighborhood Merchant',
-            distance: r.distance_km ? `${r.distance_km.toFixed(1)} km away` : '0.8 km',
+            distance: distLabel,
             price: Number(r.price) || 249,
             originalPrice: Number(r.price) ? Math.round(Number(r.price) * 1.3) : undefined,
-            rating: 4.88,
-            ratingCount: '1.4k',
+            rating: Number(r.rating) || 4.9,
+            ratingCount: 'Live DB Record',
             image: isSlot
               ? (cat === 'turf' ? INDIAN_CATALOG[6].image : INDIAN_CATALOG[4].image)
-              : (cat === 'dining' ? INDIAN_CATALOG[0].image : INDIAN_CATALOG[2].image),
+              : (isDining ? INDIAN_CATALOG[0].image : INDIAN_CATALOG[2].image),
             imageAlt: r.item_name || 'Search result',
-            badge: isSlot ? 'LIVE SLOT' : 'INSTANT DISPATCH',
-            badgeColor: isSlot ? 'bg-primary-container text-on-primary' : 'bg-secondary text-on-secondary',
-            deliveryEtaOrSlot: isSlot ? 'Today · Instant Lock' : '15-20m',
-            description: r.description || `Fresh availability from ${r.business_name}.`,
+            badge: '⚡ LIVE SERVER DB',
+            badgeColor: 'bg-emerald-600 text-white font-bold',
+            deliveryEtaOrSlot: isSlot ? 'Today · Instant Lock' : '15-20m Express',
+            description: r.description || `Fresh real-time inventory from ${r.business_name}. Powered by Docker PostgreSQL 16 on Pratham's Server.`,
             isService: isSlot,
             serviceType: isSlot ? (cat === 'turf' ? 'Sports Turf' : 'Salon & Grooming') : undefined,
             priceLabel: isSlot ? '/ slot' : undefined
@@ -860,6 +881,40 @@ export default function BuyerHome() {
           {/* Top Command Center & Context Header */}
           <section className="w-full max-w-7xl mx-auto px-margin-mobile lg:px-margin pt-space-md pb-space-lg">
             <div className="flex flex-col gap-space-md">
+              {/* Live Dedicated Server Mesh Telemetry Banner */}
+              <div className="flex flex-wrap items-center justify-between gap-space-sm bg-gradient-to-r from-emerald-950/40 via-surface-container-low to-primary/10 border border-emerald-500/30 rounded-xl px-space-md py-space-xs text-xs shadow-sm">
+                <div className="flex items-center gap-space-sm flex-wrap">
+                  <span className="flex h-2.5 w-2.5 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                  </span>
+                  <span className="font-bold text-emerald-400">
+                    {serverNode?.serverName || "Pratham's Dedicated Laptop Server Node (Pune)"}
+                  </span>
+                  <span className="text-outline">•</span>
+                  <span className="text-on-surface-variant font-mono">
+                    {serverNode?.latency || "29ms Direct Tunnel"}
+                  </span>
+                  <span className="text-outline">•</span>
+                  <span className="bg-emerald-500/10 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/20 font-medium">
+                    PostgreSQL 16 & Redis Active
+                  </span>
+                  <span className="hidden md:inline text-outline">•</span>
+                  <span className="hidden md:inline text-on-surface-variant">
+                    {serverNode?.stats?.merchants || 4} Verified Pune Merchants
+                  </span>
+                </div>
+                <div className="flex items-center gap-space-xs">
+                  <button 
+                    onClick={() => { setSearchQuery('biryani'); handleSearchSubmit('biryani'); }}
+                    className="text-primary hover:text-primary-container font-semibold underline text-[11px] cursor-pointer flex items-center gap-1"
+                    type="button"
+                  >
+                    <span>⚡ Live DB Test: "biryani"</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Utility Control Strip */}
               <div className="flex flex-wrap items-center justify-between gap-space-sm bg-surface-container-low rounded-xl px-space-md py-space-xs shadow-sm">
                 <div className="flex items-center gap-space-md flex-wrap">

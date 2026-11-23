@@ -205,6 +205,44 @@ export async function runGatewayIntegrationTests(): Promise<TestResult[]> {
     }
   }
 
+  // Test 7: Live Merchant DB Peshwa Dum Biryani & Kebabs Discovery
+  {
+    const start = Date.now();
+    try {
+      const res = await merchantPool.query(
+        `SELECT 
+          i.item_name,
+          i.price::float,
+          m.business_name,
+          m.upi_vpa
+        FROM inventory_items i
+        JOIN merchants m ON i.merchant_id = m.id
+        WHERE i.item_name ILIKE $1
+        LIMIT 1;`,
+        ['%biryani%']
+      );
+      assert(res.rows.length >= 1, 'Merchant DB must return seeded Peshwa Biryani item');
+      assert(res.rows[0].item_name.includes('Biryani'), 'Item name must contain Biryani');
+      assert(res.rows[0].price > 0, 'Item price must be positive number in INR');
+
+      results.push({
+        suite: 'Live Integration & Security',
+        name: 'Integration: Live Merchant DB Peshwa Dum Biryani & Kebabs Discovery',
+        passed: true,
+        durationMs: Date.now() - start,
+        metadata: { item: res.rows[0].item_name, price: res.rows[0].price, vendor: res.rows[0].business_name }
+      });
+    } catch (e: any) {
+      results.push({
+        suite: 'Live Integration & Security',
+        name: 'Integration: Live Merchant DB Peshwa Dum Biryani & Kebabs Discovery',
+        passed: false,
+        durationMs: Date.now() - start,
+        error: e.message
+      });
+    }
+  }
+
   await customerPool.end().catch(() => {});
   await merchantPool.end().catch(() => {});
 

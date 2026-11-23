@@ -129,7 +129,34 @@ async function runSeed() {
     `, [demoPasswordHash]);
     const m3Id = m3Res.rows[0].id;
 
-    console.log('   ✓ Seeded 3 local neighborhood merchants with GPS coordinates & auth passwords.');
+    // Merchant 4: Peshwa Dum Biryani & Kebabs (GPS: 18.5090° N, 73.8060° E - Kothrud)
+    const m4Res = await merchantPool.query(`
+      INSERT INTO merchants (business_name, category, owner_phone, owner_email, password_hash, is_verified, upi_vpa, address, pincode, latitude, longitude, is_open, rating)
+      VALUES (
+        'Peshwa Dum Biryani & Kebabs',
+        'RESTAURANT',
+        '+919876543213',
+        'peshwa.biryani@streetverse.local',
+        $1,
+        true,
+        'peshwa.biryani@okhdfcbank',
+        'Shop 8, Karve Road, Kothrud, Pune',
+        '411038',
+        18.5090000,
+        73.8060000,
+        true,
+        4.95
+      )
+      ON CONFLICT (owner_phone) DO UPDATE SET 
+        business_name = EXCLUDED.business_name,
+        owner_email = EXCLUDED.owner_email,
+        password_hash = EXCLUDED.password_hash,
+        is_verified = true
+      RETURNING id;
+    `, [demoPasswordHash]);
+    const m4Id = m4Res.rows[0].id;
+
+    console.log('   ✓ Seeded 4 local neighborhood merchants with GPS coordinates & auth passwords.');
 
     // 4. Seed Inventory Items with Vector Embeddings (1536-dim normalized vectors)
     console.log('4. Seeding Inventory Items with pgvector embeddings...');
@@ -142,9 +169,12 @@ async function runSeed() {
         ($1, 'Farm Fresh Organic Eggs (Pack of 6)', 'GROCERY', 'Locally sourced free-range organic eggs', 60.00, 30, 'packet', true, $2::vector),
         ($1, 'Pure Cow Milk (1 Litre)', 'GROCERY', 'Pasteurized fresh whole cow milk', 65.00, 25, 'litre', true, $2::vector),
         ($3, 'Digital Infrared Thermometer', 'PHARMACY', 'Non-contact instant body temperature monitor', 850.00, 8, 'pcs', true, $2::vector),
-        ($3, 'First Aid Emergency Care Kit', 'PHARMACY', 'Complete antiseptic bandages, gauze, and ointment pack', 220.00, 14, 'pcs', true, $2::vector)
+        ($3, 'First Aid Emergency Care Kit', 'PHARMACY', 'Complete antiseptic bandages, gauze, and ointment pack', 220.00, 14, 'pcs', true, $2::vector),
+        ($4, 'Royal Hyderabadi Dum Biryani Feast (1kg)', 'DINING', 'Authentic dum pukht saffron basmati biryani with spiced chicken & mirchi ka salan', 349.00, 20, 'pot', true, $2::vector),
+        ($4, 'Special Handi Mutton Dum Biryani (1kg)', 'DINING', 'Slow cooked tender goat meat dum biryani served with burani raita', 599.00, 15, 'pot', true, $2::vector),
+        ($4, 'Tandoori Malai Chaap with Mint Chutney', 'DINING', 'Charcoal grilled soya chaap in creamy cashew marinade', 249.00, 25, 'portion', true, $2::vector)
       ON CONFLICT DO NOTHING;
-    `, [m1Id, dummyVector, m3Id]);
+    `, [m1Id, dummyVector, m3Id, m4Id]);
 
     console.log('   ✓ Seeded inventory items with pgvector embeddings.');
 
