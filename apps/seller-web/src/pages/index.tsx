@@ -95,7 +95,7 @@ export default function SellerDashboard() {
   const [isUploadingKyc, setIsUploadingKyc] = useState(false);
   const [kycUploadSuccess, setKycUploadSuccess] = useState<string | null>(null);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://clatter-mousiness-smugness.ngrok-free.dev';
 
   // Apply theme classes
   useEffect(() => {

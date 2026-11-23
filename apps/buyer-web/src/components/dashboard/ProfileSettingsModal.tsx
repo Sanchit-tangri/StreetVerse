@@ -18,7 +18,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ user
   const [status, setStatus] = useState<{ type: 'error' | 'success' | 'info'; message: string } | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://unplowed-nutlike-antitoxic.ngrok-free.dev';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://clatter-mousiness-smugness.ngrok-free.dev';
 
   const handleRequestEmailChange = async (e: React.FormEvent) => {
     e.preventDefault();

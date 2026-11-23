@@ -37,6 +37,10 @@ jobs:
           
           Write-Host "Building API Gateway..."
           npm --prefix services/api-gateway run build
+          
+          Write-Host "Installing Python AI Engine dependencies..."
+          python -m pip install --upgrade pip
+          python -m pip install -r services/ai-agent-engine/requirements.txt
 
       - name: Ensure Database Containers (Optional)
         continue-on-error: true
@@ -62,15 +66,8 @@ jobs:
             $env:Path = "$npmPath;$env:Path"
           }
 
-          Write-Host "Checking PM2 process status..."
-          # Use npx --yes to prevent interactive prompts
-          npx --yes pm2 describe streetverse-gateway 2>$null
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host "Reloading existing PM2 processes..."
-            npx --yes pm2 reload ecosystem.config.js --update-env
-          } else {
-            Write-Host "Starting fresh PM2 processes..."
-            npx --yes pm2 start ecosystem.config.js
-          }
+          Write-Host "Starting or reloading PM2 processes..."
+          # Use startOrReload so new processes (like streetverse-tunnel) start and existing ones reload
+          npx --yes pm2 startOrReload ecosystem.config.js --update-env
           npx --yes pm2 save
           Write-Host "StreetVerse Home Server successfully deployed and active!" -ForegroundColor Green
