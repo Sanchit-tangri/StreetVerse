@@ -16,40 +16,61 @@ jobs:
       - name: Checkout Latest Code
         uses: actions/checkout@v4
 
-      - name: Install Monorepo & Gateway Dependencies
+      - name: Diagnostic Environment Check
         run: |
-          Write-Host "Installing dependencies..."
-          npm install --no-audit
-          npm --prefix services/api-gateway install --no-audit
+          $ErrorActionPreference = 'Continue'
+          Write-Host "==========================================" -ForegroundColor Cyan
+          Write-Host "   Node version: $(node -v 2>$null)"
+          Write-Host "   NPM version:  $(npm -v 2>$null)"
+          Write-Host "   Git version:  $(git --version 2>$null)"
+          Write-Host "   Python:       $(python --version 2>$null)"
+          Write-Host "==========================================" -ForegroundColor Cyan
+
+      - name: Install Dependencies & Build API Gateway
+        run: |
+          $ErrorActionPreference = 'Continue'
+          Write-Host "Installing root dependencies..."
+          npm install --no-audit --no-fund
+          
+          Write-Host "Installing API Gateway dependencies..."
+          npm --prefix services/api-gateway install --no-audit --no-fund
+          
+          Write-Host "Building API Gateway..."
           npm --prefix services/api-gateway run build
 
-      - name: Ensure Docker Databases are Running
+      - name: Ensure Database Containers (Optional)
+        continue-on-error: true
         run: |
-          $docker = Get-Command docker -ErrorAction SilentlyContinue
-          if ($docker) {
-            Write-Host "Starting Docker containers..."
-            docker compose up -d
-          } else {
-            Write-Host "Docker not in PATH. Resilient database pool is active."
+          $ErrorActionPreference = 'Continue'
+          try {
+            $docker = Get-Command docker -ErrorAction SilentlyContinue
+            if ($docker) {
+              Write-Host "Attempting to start Docker containers..."
+              docker compose up -d
+            } else {
+              Write-Host "Docker not in PATH. Resilient database pool active."
+            }
+          } catch {
+            Write-Host "Docker not running. Resilient pool will handle storage."
           }
 
-      - name: Deploy & Reload Backend Services with PM2
+      - name: Launch or Reload Backend with PM2
         run: |
-          Write-Host "Reloading PM2 processes..."
-          # Refresh Path in runner session so globally installed npm tools are visible
+          $ErrorActionPreference = 'Continue'
           $npmPath = Join-Path $env:APPDATA "npm"
           if ($env:Path -notlike "*$npmPath*") {
             $env:Path = "$npmPath;$env:Path"
           }
 
-          # Check if pm2 is already running the apps
-          npx pm2 describe streetverse-gateway 2>$null
+          Write-Host "Checking PM2 process status..."
+          # Use npx --yes to prevent interactive prompts
+          npx --yes pm2 describe streetverse-gateway 2>$null
           if ($LASTEXITCODE -eq 0) {
             Write-Host "Reloading existing PM2 processes..."
-            npx pm2 reload ecosystem.config.js --update-env
+            npx --yes pm2 reload ecosystem.config.js --update-env
           } else {
             Write-Host "Starting fresh PM2 processes..."
-            npx pm2 start ecosystem.config.js
+            npx --yes pm2 start ecosystem.config.js
           }
-          npx pm2 save
-          Write-Host "StreetVerse Home Server successfully deployed and running!"
+          npx --yes pm2 save
+          Write-Host "StreetVerse Home Server successfully deployed and active!" -ForegroundColor Green
