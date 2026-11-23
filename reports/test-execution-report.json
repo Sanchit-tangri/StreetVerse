@@ -1,9 +1,9 @@
 {
-  "executionTimestamp": "2026-11-10T17:46:28.442Z",
+  "executionTimestamp": "2026-11-23T08:21:51.183Z",
   "totalTests": 22,
   "passed": 22,
   "failed": 0,
-  "durationSeconds": 0.58,
+  "durationSeconds": 0.94,
   "environment": {
     "node": "v24.14.0",
     "platform": "win32",
@@ -16,7 +16,7 @@
       "suite": "Search Engine",
       "name": "Unit: Geospatial Haversine Great-Circle Proximity Calculation",
       "passed": true,
-      "durationMs": 1,
+      "durationMs": 0,
       "metadata": {
         "calculatedMeters": 262.2
       }
@@ -37,7 +37,7 @@
       "suite": "Search Engine",
       "name": "Unit: Cross-Domain Multi-Category Discovery (Retail Products & Salon Services)",
       "passed": true,
-      "durationMs": 0
+      "durationMs": 1
     },
     {
       "suite": "Search Engine",
@@ -49,7 +49,7 @@
       "suite": "Authentication & Security",
       "name": "Unit: Cryptographic Salt Entropy & Bcrypt Verification",
       "passed": true,
-      "durationMs": 352
+      "durationMs": 713
     },
     {
       "suite": "Authentication & Security",
@@ -67,7 +67,7 @@
       "suite": "Authentication & Security",
       "name": "Unit: JWT Signature Verification & Cryptographic Tamper Resistance",
       "passed": true,
-      "durationMs": 4
+      "durationMs": 5
     },
     {
       "suite": "Authentication & Security",
@@ -91,7 +91,7 @@
       "suite": "Booking & Slot Locking",
       "name": "Unit: 5-Minute TTL Automated Eviction (Abandoned Cart Recovery)",
       "passed": true,
-      "durationMs": 75
+      "durationMs": 73
     },
     {
       "suite": "Booking & Slot Locking",
@@ -115,7 +115,7 @@
       "suite": "Live Integration & Security",
       "name": "Integration: Live Customer DB (Port 5433) Connectivity & User State",
       "passed": true,
-      "durationMs": 40,
+      "durationMs": 20,
       "metadata": {
         "user": "Rahul Deshmukh"
       }
@@ -124,10 +124,10 @@
       "suite": "Live Integration & Security",
       "name": "Integration: Live Merchant DB (Port 5434) PostGIS Earthdistance Calculation",
       "passed": true,
-      "durationMs": 18,
+      "durationMs": 5,
       "metadata": {
-        "merchant": "Green Valley Daily Needs & Organic Grocery",
-        "distance": "0.0"
+        "merchant": "Sharma Kirana & General Store",
+        "distance": 0
       }
     },
     {
@@ -140,19 +140,19 @@
       "suite": "Live Integration & Security",
       "name": "Security Blackbox: SQL Injection Resistance - Comment Vector (admin'--)",
       "passed": true,
-      "durationMs": 1
+      "durationMs": 2
     },
     {
       "suite": "Live Integration & Security",
       "name": "Security Blackbox: SQL Injection Resistance - Stacked Query Vector ('; DROP TABLE...)",
       "passed": true,
-      "durationMs": 1
+      "durationMs": 2
     },
     {
       "suite": "Live Integration & Security",
       "name": "Integration: Seeded Customer Bcrypt Password Verification Contract",
       "passed": true,
-      "durationMs": 78
+      "durationMs": 113
     }
   ]
 }
