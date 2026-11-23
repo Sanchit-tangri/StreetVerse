@@ -37,6 +37,10 @@ jobs:
           
           Write-Host "Building API Gateway..."
           npm --prefix services/api-gateway run build
+          
+          Write-Host "Installing Python AI Engine dependencies..."
+          python -m pip install --upgrade pip
+          python -m pip install -r services/ai-agent-engine/requirements.txt
 
       - name: Ensure Database Containers (Optional)
         continue-on-error: true
