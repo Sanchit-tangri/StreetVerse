@@ -9,34 +9,47 @@ jobs:
   deploy:
     name: Auto Deploy to Laptop Server
     runs-on: self-hosted
+    defaults:
+      run:
+        shell: powershell
     steps:
       - name: Checkout Latest Code
         uses: actions/checkout@v4
 
       - name: Install Monorepo & Gateway Dependencies
         run: |
-          npm install
-          npm --prefix services/api-gateway install
+          Write-Host "Installing dependencies..."
+          npm install --no-audit
+          npm --prefix services/api-gateway install --no-audit
           npm --prefix services/api-gateway run build
 
       - name: Ensure Docker Databases are Running
-        shell: powershell
         run: |
           $docker = Get-Command docker -ErrorAction SilentlyContinue
           if ($docker) {
+            Write-Host "Starting Docker containers..."
             docker compose up -d
           } else {
-            Write-Host "Docker not detected in PATH. Resilient in-memory database will maintain zero downtime."
+            Write-Host "Docker not in PATH. Resilient database pool is active."
           }
 
-      - name: Reload Backend Services with PM2
-        shell: powershell
+      - name: Deploy & Reload Backend Services with PM2
         run: |
-          $pm2 = Get-Command pm2 -ErrorAction SilentlyContinue
-          if (-not $pm2) {
-            Write-Host "Installing PM2 globally..."
-            npm install -g pm2
+          Write-Host "Reloading PM2 processes..."
+          # Refresh Path in runner session so globally installed npm tools are visible
+          $npmPath = Join-Path $env:APPDATA "npm"
+          if ($env:Path -notlike "*$npmPath*") {
+            $env:Path = "$npmPath;$env:Path"
           }
-          pm2 reload ecosystem.config.js --update-env || pm2 start ecosystem.config.js
-          pm2 save
-          Write-Host "StreetVerse Home Server successfully updated and running!"
+
+          # Check if pm2 is already running the apps
+          npx pm2 describe streetverse-gateway 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Reloading existing PM2 processes..."
+            npx pm2 reload ecosystem.config.js --update-env
+          } else {
+            Write-Host "Starting fresh PM2 processes..."
+            npx pm2 start ecosystem.config.js
+          }
+          npx pm2 save
+          Write-Host "StreetVerse Home Server successfully deployed and running!"
