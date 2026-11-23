@@ -1,3 +1,9 @@
+const fs = require('fs');
+const path = require('path');
+
+const venvPython = path.resolve(__dirname, '.venv', 'Scripts', 'python.exe');
+const pythonInterpreter = fs.existsSync(venvPython) ? venvPython : 'python';
+
 module.exports = {
   apps: [
     {
@@ -17,7 +23,7 @@ module.exports = {
       name: 'streetverse-ai-engine',
       cwd: './services/ai-agent-engine',
       script: 'main.py',
-      interpreter: 'python',
+      interpreter: pythonInterpreter,
       autorestart: true,
       watch: false,
       max_memory_restart: '500M',
