@@ -294,3 +294,8 @@ async def orchestrate_agent_intent(req: AgentChatRequest):
 @app.get("/health")
 def health():
     return {"status": "healthy", "service": "StreetVerse AI Multi-Agent Engine"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
+
