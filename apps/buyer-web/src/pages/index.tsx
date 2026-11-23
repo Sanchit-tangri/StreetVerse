@@ -223,7 +223,7 @@ export default function BuyerHome() {
   const [isLocking, setIsLocking] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://clatter-mousiness-smugness.ngrok-free.dev';
 
   // Apply visual theme to DOM
   useEffect(() => {

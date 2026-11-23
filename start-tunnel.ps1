@@ -1,7 +1,7 @@
 # start-tunnel.ps1
 param (
     [int]$Port = 5000,
-    [string]$Domain = "https://unplowed-nutlike-antitoxic.ngrok-free.dev"
+    [string]$Domain = "https://clatter-mousiness-smugness.ngrok-free.dev"
 )
 
 Write-Host "=============================================" -ForegroundColor Cyan
