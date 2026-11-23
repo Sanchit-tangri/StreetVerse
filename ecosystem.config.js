@@ -7,7 +7,7 @@ const pythonInterpreter = fs.existsSync(venvPython) ? venvPython : 'python';
 const apps = [
   {
     name: 'streetverse-gateway',
-    cwd: './services/api-gateway',
+    cwd: path.resolve(__dirname, 'services', 'api-gateway'),
     script: 'dist/index.js',
     instances: 1,
     autorestart: true,
@@ -20,7 +20,7 @@ const apps = [
   },
   {
     name: 'streetverse-ai-engine',
-    cwd: './services/ai-agent-engine',
+    cwd: path.resolve(__dirname, 'services', 'ai-agent-engine'),
     script: 'main.py',
     interpreter: pythonInterpreter,
     autorestart: true,
