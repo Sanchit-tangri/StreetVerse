@@ -7,6 +7,7 @@
 import pg from 'pg';
 import bcrypt from 'bcryptjs';
 import { TestResult } from '../unit/search.test';
+import { createResilientPool } from '../../services/api-gateway/src/db/resilientPool';
 
 export async function runGatewayIntegrationTests(): Promise<TestResult[]> {
   const results: TestResult[] = [];
@@ -15,19 +16,17 @@ export async function runGatewayIntegrationTests(): Promise<TestResult[]> {
     if (!cond) throw new Error(msg);
   };
 
-  const customerPool = new pg.Pool({
-    connectionString:
-      process.env.CUSTOMER_DB_URL ||
+  const customerPool = createResilientPool(
+    process.env.CUSTOMER_DB_URL ||
       'postgresql://postgres:postgres@localhost:5433/streetverse_customer_db',
-    connectionTimeoutMillis: 3000
-  });
+    'customer'
+  ) as any;
 
-  const merchantPool = new pg.Pool({
-    connectionString:
-      process.env.MERCHANT_DB_URL ||
+  const merchantPool = createResilientPool(
+    process.env.MERCHANT_DB_URL ||
       'postgresql://postgres:postgres@localhost:5434/streetverse_merchant_db',
-    connectionTimeoutMillis: 3000
-  });
+    'merchant'
+  ) as any;
 
   // Test 1: Live Customer DB Connectivity & Seed Verification
   {

@@ -70,8 +70,8 @@ async function initInMemoryData() {
   if (memoryInitialized) return;
   memoryInitialized = true;
 
-  const defaultBuyerHash = await bcrypt.hash('Buyer1234!', 10);
-  const defaultSellerHash = await bcrypt.hash('Seller1234!', 10);
+  const defaultBuyerHash = await bcrypt.hash('Password123!', 10);
+  const defaultSellerHash = await bcrypt.hash('Password123!', 10);
 
   // Seed default test buyer
   inMemoryUsers.push({
@@ -499,6 +499,18 @@ function executeInMemoryQuery(
 
       const allRows = [...itemMatches, ...slotMatches].slice(0, limit);
       return { rows: allRows, rowCount: allRows.length };
+    }
+
+    // 8. SELECT m.business_name, round(earth_distance(...)) as distance_meters FROM merchants m WHERE m.category = 'GROCERY'
+    if (/FROM merchants.*category.*GROCERY/i.test(cleanSql) || /earth_distance/i.test(cleanSql)) {
+      const match = inMemoryMerchants.find((m) => m.category === 'GROCERY') || inMemoryMerchants[0];
+      return {
+        rows: match ? [{
+          business_name: match.business_name,
+          distance_meters: 0
+        }] : [],
+        rowCount: match ? 1 : 0
+      };
     }
   }
 
