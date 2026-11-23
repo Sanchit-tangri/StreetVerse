@@ -69,8 +69,9 @@ jobs:
             $env:Path = "$npmPath;$env:Path"
           }
 
-          Write-Host "Starting or reloading PM2 processes..."
-          # Use startOrReload so new processes (like streetverse-tunnel) start and existing ones reload
-          npx --yes pm2 startOrReload ecosystem.config.js --update-env
+          Write-Host "Updating PM2 services with latest deployment build..."
+          npx --yes pm2 delete streetverse-gateway 2>$null
+          npx --yes pm2 delete streetverse-ai-engine 2>$null
+          npx --yes pm2 start ecosystem.config.js
           npx --yes pm2 save
           Write-Host "StreetVerse Home Server successfully deployed and active!" -ForegroundColor Green
