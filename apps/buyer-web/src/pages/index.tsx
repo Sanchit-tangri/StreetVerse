@@ -25,79 +25,155 @@ interface MarketplaceItem {
   priceLabel?: string;
 }
 
-const INITIAL_CATALOG: MarketplaceItem[] = [
+// 100% Indian Hyperlocal Catalog with authentic pricing (₹ INR), vendors & images
+const INDIAN_CATALOG: MarketplaceItem[] = [
   {
     id: 'd-1',
     category: 'dining',
-    title: 'Woodfired Margherita & Burrata Box',
-    vendorName: 'Bella Forno Pizzeria',
-    distance: '1.2 miles',
-    price: 19.5,
-    originalPrice: 26.0,
-    rating: 4.9,
-    ratingCount: '1.2k',
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAn1iHUUI2KnATuH94VGQIGh6vegy0xedfgxXCtlvjmGesR4G_OBsidnQthHZ6BFqcovfLnpew-_EFEkMHYdAb0jKdhKhsMrRYhOGENb76WhHX0fEowu-0vtLJrIvqo96qSe2VmkHu73w1quR_9eQ7-bdh17MnkSJFgMwFtLBYzJd-i_whCd7I8kIRfJemZkyTgjTxgp5TdAx9HzSUisfCAzDYfwRFXVtm3QhYSTl4',
-    imageAlt: 'Artisanal sourdough crust Neapolitan pizza bubbling with mozzarella and basil',
-    badge: '25% OFF BUNDLE',
+    title: 'Special Handi Mutton Dum Biryani (Peshawari Saffron)',
+    vendorName: 'Bawarchi Nawabi Kitchen',
+    distance: '0.8 km (Kothrud)',
+    price: 349,
+    originalPrice: 450,
+    rating: 4.92,
+    ratingCount: '3.4k',
+    image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=800&q=80',
+    imageAlt: 'Authentic Hyderabadi Dum Biryani served with fragrant saffron and spices in traditional clay handi',
+    badge: '30% OFF COMBO',
     badgeColor: 'bg-error text-on-error',
-    deliveryEtaOrSlot: '18-25m',
-    description: 'Slow fermented dough, DOP certified buffalo mozzarella, fresh basil, and pesto drizzle.'
+    deliveryEtaOrSlot: '18-22m',
+    description: 'Slow-cooked aged Basmati rice, marinated tender mutton chunks, saffron milk, served with spicy mirchi ka salan & burani raita.'
+  },
+  {
+    id: 'd-2',
+    category: 'dining',
+    title: 'Woodfired Paneer Tikka & Burrata Makhani Naan-Za',
+    vendorName: 'The Artisan Tandoor & Oven',
+    distance: '1.2 km (FC Road)',
+    price: 269,
+    originalPrice: 340,
+    rating: 4.88,
+    ratingCount: '1.9k',
+    image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80',
+    imageAlt: 'Woodfired tandoori pizza bubbling with mozzarella, paneer tikka, and rich makhani sauce',
+    badge: 'CHEF SPECIAL',
+    badgeColor: 'bg-primary-container text-on-primary',
+    deliveryEtaOrSlot: '20-25m',
+    description: '48-hour fermented sourdough crust, charred clay oven paneer tikka, rich butter makhani reduction, buffalo mozzarella, and fresh coriander.'
   },
   {
     id: 'g-1',
     category: 'grocery',
-    title: 'Artisan Farmstead Morning Basket',
-    vendorName: 'GreenAcres Organic Farm',
-    distance: '0.8 miles',
-    price: 16.8,
-    originalPrice: 22.0,
-    rating: 4.95,
-    ratingCount: '2.4k',
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCCwiN2tC4w5ucDwV70bZHCGzasAUQki3RUBYUvPGTraqzgxOSn4iX2VdczMZ2hYym_w3Q4o9539koBOcSnAxtlbKMfn0HajqXn-4Bc4Gj_j9SioYBH6uWFh1zwUXGFdG5vu8dp9DwzvcVZRFDTynKvk5ufQsIXlAsXrYo91v-ROAfmFETZ9OkUJBL4xINr5_RhpjvqMAfZ3eNB5L67NSw0z9r607ZU_o04Y1ua-D8',
-    imageAlt: 'Curated organic farm breakfast grocery kit with milk, brown eggs, honey',
-    badge: 'FLASH HARVEST',
+    title: 'Fresh Mandi Morning Harvest + A2 Desi Cow Milk Basket',
+    vendorName: 'Gokul Kisan Mandi Direct & Dairy',
+    distance: '0.6 km (Pune Mandi)',
+    price: 185,
+    originalPrice: 240,
+    rating: 4.96,
+    ratingCount: '4.8k',
+    image: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=800&q=80',
+    imageAlt: 'Fresh morning farm harvest vegetables and glass milk bottle',
+    badge: 'FLASH MANDI HARVEST',
+    badgeColor: 'bg-secondary text-on-secondary',
+    deliveryEtaOrSlot: '10 min drop',
+    description: '1L A2 Gir Cow Milk, 6 Free-range brown eggs, 1kg Desi Hybrid Tomatoes, 500g Tender Bhindi, and Fresh Dhaniya-Mirchi bundle.'
+  },
+  {
+    id: 'g-2',
+    category: 'grocery',
+    title: 'MP Sharbati Chakki Atta (5kg) + Fortune Kachi Ghani Mustard Oil (1L)',
+    vendorName: 'Sharma Kirana & General Store',
+    distance: '0.3 km (Mayur Colony)',
+    price: 395,
+    originalPrice: 460,
+    rating: 4.82,
+    ratingCount: '2.1k',
+    image: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=800&q=80',
+    imageAlt: 'Indian kitchen staples, grain bags, chakki flour, mustard oil',
+    badge: 'KIRANA SAVER',
     badgeColor: 'bg-secondary text-on-secondary',
     deliveryEtaOrSlot: '12 min drop',
-    description: 'Pasture-raised eggs (12ct), A2 Whole Milk, sourdough loaf, and organic blueberries.'
+    description: '100% whole wheat grain chakki fresh ground flour with unrefined cold-pressed virgin mustard oil for healthy Indian cooking.'
   },
   {
     id: 'w-1',
     category: 'wellness',
-    title: 'Precision Cut & Botanical Spa Blowdry',
-    vendorName: 'LuxeAura Studio',
-    distance: '1.5 miles',
-    price: 45.0,
-    originalPrice: 60.0,
-    rating: 4.96,
-    ratingCount: '840',
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA__atbqOk8tdF2F-tEh4eOUUBdJ6nW1_02eDCBQDnzIZYSmg4DiU1hrI2aCM17PmoPfjNaRYy5RZCYxbxhxSoy4Qh44RbYL0qpkX8upTKgXeKX3I9pc5lJ50mSTBEX6ZBdXM8Nvp2YRFLrYFl6iYqYhb3i_Eu2uoiFjD21uZY3AQIJusrmfKn4r5gMn1WYhX_6lbha1K5JvafOyiiddePSEw33k56VauYL5dcVO4I',
-    imageAlt: 'Professional chic salon styling session with luxury aesthetic',
-    badge: 'SLOT DISCOUNT',
+    title: 'Royal Grooming: Precision Fade Cut, Beard Sculpt & Charcoal D-Tan',
+    vendorName: 'TrueCut Barber & Salon Studio',
+    distance: '1.1 km (Indiranagar / Kothrud)',
+    price: 299,
+    originalPrice: 450,
+    rating: 4.95,
+    ratingCount: '1.6k',
+    image: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=800&q=80',
+    imageAlt: 'Modern men salon haircut and beard styling session',
+    badge: 'ZERO WAIT TOKEN',
     badgeColor: 'bg-primary-container text-on-primary',
-    deliveryEtaOrSlot: 'Open: 3:30 PM Today',
-    description: 'Includes consultation, scalp massage, organic rosemary rinse, and custom blowdry.',
+    deliveryEtaOrSlot: 'Open: 05:30 PM Today',
+    description: 'Stylist consultation, precision fade haircut, beard sculpting with hot towel steam, and herbal charcoal de-tan skin glow therapy.',
     isService: true,
-    serviceType: 'Hair & Spa',
+    serviceType: 'Men Grooming',
+    priceLabel: '40 mins'
+  },
+  {
+    id: 'w-2',
+    category: 'wellness',
+    title: 'Ayurvedic Herbal Hair Spa & Shirodhara Head Massage (45 Mins)',
+    vendorName: 'Aura Ayurvedic Wellness Lounge',
+    distance: '1.8 km (Deccan Gymkhana)',
+    price: 599,
+    originalPrice: 850,
+    rating: 4.98,
+    ratingCount: '920',
+    image: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80',
+    imageAlt: 'Ayurvedic massage and relaxation spa therapy',
+    badge: '5-MIN ATOMIC LOCK',
+    badgeColor: 'bg-surface-tint text-on-primary',
+    deliveryEtaOrSlot: 'Open: 06:30 PM Today',
+    description: 'Warm Brahmi & Bhringraj oil massage, scalp steam, herbal nourishing mask, and soothing neck & shoulder stress release.',
+    isService: true,
+    serviceType: 'Ayurvedic Spa',
     priceLabel: '45 mins'
   },
   {
     id: 't-1',
     category: 'turf',
-    title: 'Prime 7v7 Turf (60 Mins Slot)',
-    vendorName: 'StreetVerse Arena Downtown',
-    distance: 'Campus East (2.4 mi)',
-    price: 32.0,
+    title: 'Prime Floodlit Box Cricket Arena (60 Mins Slot - Bats & Ball Included)',
+    vendorName: 'Spartan Box Cricket Arena',
+    distance: '2.2 km (Campus East / Baner)',
+    price: 800,
+    originalPrice: 1000,
     rating: 4.92,
-    ratingCount: '520',
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAwna39CjJrEPKHxEIF6OZTGBn1OsQCbe4q52rk7zlRS15GR5CuUorkPGfSkC5Q2hBmyKc3Hzwh93AA9nVR9My-OOpPXG9ZJDOLpnwJRogc7kDVMJ_yBF7Ycn9HySmv68nxQiCDp3Tcg6tzzFYoj25yNBbOM9_i9v_jyIMfUm9nHnq-4_mbi2eKXTwDOiIREQvg3pfc4kUjf5nSUOgvEYpp2AixoPfEak_wimoDCnw',
-    imageAlt: 'High quality indoor wooden badminton and squash courts with LED glare-free lights',
+    ratingCount: '840',
+    image: 'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?auto=format&fit=crop&w=800&q=80',
+    imageAlt: 'Green floodlit turf arena under night sports stadium lights',
     badge: 'NIGHT LEAGUE OPEN',
     badgeColor: 'bg-tertiary-container text-on-tertiary',
-    deliveryEtaOrSlot: 'Tonight 7-8 PM Open',
-    description: 'Full FIFA-grade shock-absorption turf, changing showers, and floodlit night access.',
+    deliveryEtaOrSlot: 'Tonight 8-9 PM Open',
+    description: 'High-density synthetic box cricket turf, boundary netting, glare-free LED floodlights, digital scoreboard, and gear rentals.',
+    isService: true,
+    serviceType: 'Box Cricket',
+    priceLabel: '/ 1 hr slot'
+  },
+  {
+    id: 't-2',
+    category: 'turf',
+    title: 'FIFA Pro Synthetic 7v7 Football Turf (60 Mins Slot)',
+    vendorName: 'KickOff Sports Arena',
+    distance: '2.5 km (West Metro Hub)',
+    price: 1200,
+    originalPrice: 1500,
+    rating: 4.94,
+    ratingCount: '610',
+    image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=800&q=80',
+    imageAlt: 'Synthetic football turf with night stadium lights',
+    badge: 'INSTANT LOCK',
+    badgeColor: 'bg-tertiary-container text-on-tertiary',
+    deliveryEtaOrSlot: 'Tonight 9-10 PM Open',
+    description: 'Full 7-a-side synthetic shock-pad turf pitch, night floodlit access, dugout benches, and changing rooms with showers.',
     isService: true,
     serviceType: 'Sports Turf',
-    priceLabel: '/ court slot'
+    priceLabel: '/ 1 hr slot'
   }
 ];
 
@@ -108,31 +184,27 @@ interface TrayItem {
 
 export default function BuyerHome() {
   // Theme & Accent
-  const [theme, setTheme] = useState<'light' | 'warm-beige' | 'sky-blue' | 'dark'>('light');
+  const [theme, setTheme] = useState<'light' | 'warm-beige' | 'sky-blue' | 'dark'>('dark');
   const [accent, setAccent] = useState<'indigo' | 'emerald' | 'amber' | 'rose'>('indigo');
-  const [currentLang, setCurrentLang] = useState('EN · United States');
+  const [currentLang, setCurrentLang] = useState('HI · भारत');
 
-  // User & Auth
-  const [currentUser, setCurrentUser] = useState<any>({
-    fullName: 'Elena Vance',
-    email: 'elena.vance@nexus.io',
-    phone: '+1 415-555-0198',
-    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuC_LdfTnEBhA_KDn34EdkfcJtY8hipfCfYpYr71MlyRMxkD04tjUMwrLCt_fsugz17nMsrpcHHNepT30eUp4_t01Goia3fFKpYjIiaXC2e49KgsgISLOaeLydvuR_-56k6N-uJzt3B9GFZhV2VS-zaECHCU_amHO23ImP0kiGbE9hyYubQAOJnQ4mXk0RgEuvttpMYWr3bkHOUtc_4iicVDnO5B50qAlyLVaw8X6Fo'
-  });
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  // User & Auth State (Strictly gating login first)
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
+  const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
 
   // Omnisearch & Hot Filter
   const [searchQuery, setSearchQuery] = useState('');
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [activeFilterTab, setActiveFilterTab] = useState<'all' | 'dining' | 'grocery' | 'wellness' | 'turf'>('all');
-  const [catalog, setCatalog] = useState<MarketplaceItem[]>(INITIAL_CATALOG);
+  const [catalog, setCatalog] = useState<MarketplaceItem[]>(INDIAN_CATALOG);
   const [isSearching, setIsSearching] = useState(false);
 
-  // Location
-  const [deliverTo, setDeliverTo] = useState('San Francisco 94103');
+  // Indian Delivery Location Hubs
+  const [deliverTo, setDeliverTo] = useState('Kothrud, Pune 411038');
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   // Cart / Tray slide-over
@@ -177,14 +249,16 @@ export default function BuyerHome() {
     }
   }, [theme]);
 
-  // Load saved buyer session from localStorage
+  // Check existing session in localStorage
   useEffect(() => {
     try {
       const savedUser = localStorage.getItem('streetverse_buyer_user');
-      if (savedUser) {
+      const savedToken = localStorage.getItem('streetverse_buyer_token');
+      if (savedUser && savedToken) {
         setCurrentUser(JSON.parse(savedUser));
       }
     } catch {}
+    setAuthChecked(true);
   }, []);
 
   // Keyboard shortcut: Cmd+K / Ctrl+K focuses search
@@ -206,11 +280,8 @@ export default function BuyerHome() {
         (pos) => {
           const { latitude, longitude } = pos.coords;
           setUserCoords({ lat: latitude, lng: longitude });
-          setDeliverTo(`Live Zone (${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°)`);
         },
-        () => {
-          setDeliverTo('Downtown Hub · Zone 1');
-        },
+        () => {},
         { timeout: 8000 }
       );
     }
@@ -234,25 +305,32 @@ export default function BuyerHome() {
     return () => clearInterval(timer);
   }, [isSlotLocked, slotCountdown]);
 
+  // Sign out handler (takes user back to login page)
+  const handleLogout = () => {
+    localStorage.removeItem('streetverse_buyer_user');
+    localStorage.removeItem('streetverse_buyer_token');
+    setCurrentUser(null);
+    setIsProfileDropdownOpen(false);
+  };
+
   // Voice Search Handler
   const triggerVoiceSearch = () => {
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      // Mock voice search simulation
       setIsVoiceActive(true);
       setTimeout(() => {
-        setSearchQuery('Woodfire pizza near me under 25 mins');
+        setSearchQuery('Dum handi biryani near me');
         setIsVoiceActive(false);
-        handleSearchSubmit('Woodfire pizza near me under 25 mins');
+        handleSearchSubmit('Dum handi biryani near me');
       }, 1500);
       return;
     }
 
     try {
       const recognition = new SpeechRecognition();
-      recognition.lang = 'en-US';
+      recognition.lang = 'en-IN';
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
 
@@ -266,13 +344,8 @@ export default function BuyerHome() {
         handleSearchSubmit(transcript);
       };
 
-      recognition.onerror = () => {
-        setIsVoiceActive(false);
-      };
-
-      recognition.onend = () => {
-        setIsVoiceActive(false);
-      };
+      recognition.onerror = () => setIsVoiceActive(false);
+      recognition.onend = () => setIsVoiceActive(false);
     } catch {
       setIsVoiceActive(false);
     }
@@ -282,7 +355,7 @@ export default function BuyerHome() {
   const handleSearchSubmit = async (queryText: string) => {
     const q = queryText.trim();
     if (!q) {
-      setCatalog(INITIAL_CATALOG);
+      setCatalog(INDIAN_CATALOG);
       return;
     }
 
@@ -296,7 +369,6 @@ export default function BuyerHome() {
       );
 
       if (res.data && Array.isArray(res.data.results) && res.data.results.length > 0) {
-        // Map backend results to Stitch card schema
         const mappedResults: MarketplaceItem[] = res.data.results.map((r: any, idx: number) => {
           const isSlot = r.item_type === 'slot' || r.type === 'service';
           const cat: any = isSlot ? (r.category === 'SPORTS' ? 'turf' : 'wellness') : (r.category === 'RESTAURANT' ? 'dining' : 'grocery');
@@ -305,44 +377,42 @@ export default function BuyerHome() {
             category: cat,
             title: r.item_name || r.business_name || q,
             vendorName: r.business_name || 'Neighborhood Merchant',
-            distance: r.distance_km ? `${r.distance_km.toFixed(1)} km away` : '0.9 miles',
-            price: Number(r.price) || 25.0,
-            originalPrice: Number(r.price) ? Number(r.price) * 1.25 : undefined,
-            rating: 4.85,
-            ratingCount: '1.1k',
+            distance: r.distance_km ? `${r.distance_km.toFixed(1)} km away` : '0.8 km',
+            price: Number(r.price) || 249,
+            originalPrice: Number(r.price) ? Math.round(Number(r.price) * 1.3) : undefined,
+            rating: 4.88,
+            ratingCount: '1.4k',
             image: isSlot
-              ? (cat === 'turf' ? INITIAL_CATALOG[3].image : INITIAL_CATALOG[2].image)
-              : (cat === 'dining' ? INITIAL_CATALOG[0].image : INITIAL_CATALOG[1].image),
+              ? (cat === 'turf' ? INDIAN_CATALOG[6].image : INDIAN_CATALOG[4].image)
+              : (cat === 'dining' ? INDIAN_CATALOG[0].image : INDIAN_CATALOG[2].image),
             imageAlt: r.item_name || 'Search result',
             badge: isSlot ? 'LIVE SLOT' : 'INSTANT DISPATCH',
             badgeColor: isSlot ? 'bg-primary-container text-on-primary' : 'bg-secondary text-on-secondary',
-            deliveryEtaOrSlot: isSlot ? 'Today · Instant Lock' : '20-25m',
-            description: r.description || `Freshly updated availability from ${r.business_name}.`,
+            deliveryEtaOrSlot: isSlot ? 'Today · Instant Lock' : '15-20m',
+            description: r.description || `Fresh availability from ${r.business_name}.`,
             isService: isSlot,
-            serviceType: isSlot ? (cat === 'turf' ? 'Sports Turf' : 'Salon & Wellness') : undefined,
+            serviceType: isSlot ? (cat === 'turf' ? 'Sports Turf' : 'Salon & Grooming') : undefined,
             priceLabel: isSlot ? '/ slot' : undefined
           };
         });
         setCatalog(mappedResults);
       } else {
-        // Fallback filter on local catalogue
-        const filtered = INITIAL_CATALOG.filter(
+        const filtered = INDIAN_CATALOG.filter(
           (item) =>
             item.title.toLowerCase().includes(q.toLowerCase()) ||
             item.vendorName.toLowerCase().includes(q.toLowerCase()) ||
             item.description.toLowerCase().includes(q.toLowerCase())
         );
-        setCatalog(filtered.length > 0 ? filtered : INITIAL_CATALOG);
+        setCatalog(filtered.length > 0 ? filtered : INDIAN_CATALOG);
       }
     } catch {
-      // Fallback filter
-      const filtered = INITIAL_CATALOG.filter(
+      const filtered = INDIAN_CATALOG.filter(
         (item) =>
           item.title.toLowerCase().includes(q.toLowerCase()) ||
           item.vendorName.toLowerCase().includes(q.toLowerCase()) ||
           item.description.toLowerCase().includes(q.toLowerCase())
       );
-      setCatalog(filtered.length > 0 ? filtered : INITIAL_CATALOG);
+      setCatalog(filtered.length > 0 ? filtered : INDIAN_CATALOG);
     } finally {
       setIsSearching(false);
     }
@@ -375,10 +445,10 @@ export default function BuyerHome() {
     );
   };
 
-  // Cart Calculations
+  // Cart Calculations in ₹ INR
   const traySubtotal = tray.reduce((acc, t) => acc + t.item.price * t.quantity, 0);
-  const trayDeliveryFee = traySubtotal > 25 || traySubtotal === 0 ? 0 : 2.5;
-  const trayTaxes = traySubtotal * 0.05;
+  const trayDeliveryFee = traySubtotal > 199 || traySubtotal === 0 ? 0 : 29;
+  const trayTaxes = Math.round(traySubtotal * 0.05);
   const trayTotal = traySubtotal + trayDeliveryFee + trayTaxes;
 
   // 5-Minute Atomic Slot Booking Handlers
@@ -396,8 +466,8 @@ export default function BuyerHome() {
 
     try {
       const slotId = `slot-${selectedServiceItem.id}-${Date.now().toString().slice(-4)}`;
-      const merchantId = 'm2'; // Linked merchant ID
-      const userId = currentUser?.id || 'guest-user-1';
+      const merchantId = 'm2';
+      const userId = currentUser?.id || 'c1000000-0000-0000-0000-000000000001';
 
       const res = await axios.post(
         `${API_URL}/api/v1/bookings/lock-slot`,
@@ -417,7 +487,6 @@ export default function BuyerHome() {
         setSlotCountdown(res.data.expiresInSeconds || 300);
       }
     } catch {
-      // Mock resilience lock
       setIsSlotLocked(true);
       setLockToken(`RESILIENT-${Date.now()}`);
       setSlotCountdown(300);
@@ -433,10 +502,10 @@ export default function BuyerHome() {
         `${API_URL}/api/v1/bookings/confirm-payment`,
         {
           slotId: `slot-${selectedServiceItem.id}`,
-          userId: currentUser?.id || 'guest-user-1',
+          userId: currentUser?.id || 'c1000000-0000-0000-0000-000000000001',
           merchantId: 'm2',
           serviceName: selectedServiceItem.title,
-          upiRef: `UPI-${Date.now()}`,
+          upiRef: `UPI-IND-${Date.now()}`,
           lockToken
         },
         { headers: { 'ngrok-skip-browser-warning': 'true' }, timeout: 5000 }
@@ -450,7 +519,7 @@ export default function BuyerHome() {
           tokenNumber: 314,
           serviceName: selectedServiceItem.title,
           status: 'CONFIRMED',
-          qrVerificationCode: 'STREETVERSE-PASS-PASS99'
+          qrVerificationCode: 'STREETVERSE-PASS-PUNE-314'
         });
       }
     } catch {
@@ -459,7 +528,7 @@ export default function BuyerHome() {
         tokenNumber: 314,
         serviceName: selectedServiceItem.title,
         status: 'CONFIRMED',
-        qrVerificationCode: 'STREETVERSE-PASS-PASS99'
+        qrVerificationCode: 'STREETVERSE-PASS-PUNE-314'
       });
     }
   };
@@ -470,13 +539,33 @@ export default function BuyerHome() {
     return item.category === activeFilterTab;
   });
 
+  // 1. Initial Loading Splash
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-[#090D16] flex items-center justify-center font-body-md text-white">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center shadow-lg animate-pulse">
+            <span className="material-symbols-outlined text-2xl text-white">shopping_bag</span>
+          </div>
+          <span className="text-sm font-semibold tracking-wider text-slate-400">Loading StreetVerse India...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. REQUIRE LOGIN FIRST IF NOT AUTHENTICATED
+  if (!currentUser) {
+    return <BuyerAuth onAuthSuccess={(user) => setCurrentUser(user)} />;
+  }
+
+  // 3. AUTHENTICATED BUYER MARKETPLACE EXPERIENCE
   return (
     <div className="bg-surface font-body-md text-body-md text-on-surface min-h-screen flex flex-col selection:bg-primary-container selection:text-on-primary">
       <Head>
-        <title>StreetVerse — Four Vital Lifelines. One Seamless Marketplace.</title>
+        <title>StreetVerse India — Four Vital Lifelines. One Seamless Marketplace.</title>
         <meta
           name="description"
-          content="Hyperlocal instant marketplace for Dining, Daily Groceries, Salons, and Sports Turfs."
+          content="Hyperlocal instant marketplace for Dining, Daily Mandi Groceries, Salons & Box Cricket Turfs in India."
         />
       </Head>
 
@@ -498,20 +587,50 @@ export default function BuyerHome() {
               </span>
             </div>
 
-            <button
-              className="hidden xl:flex items-center gap-space-xs px-space-sm py-space-xs rounded-xl bg-surface-container-low hover:bg-surface-container hover:text-on-surface text-on-surface-variant transition-colors text-left"
-              type="button"
-              title="Change Delivery Location"
-            >
-              <span className="material-symbols-outlined text-primary text-base">location_on</span>
-              <div className="flex flex-col">
-                <span className="font-label-sm text-label-sm text-outline">Deliver to</span>
-                <span className="font-label-md text-label-md text-on-surface font-semibold truncate max-w-[130px]">
-                  {deliverTo}
-                </span>
-              </div>
-              <span className="material-symbols-outlined text-outline text-sm">expand_more</span>
-            </button>
+            {/* Indian City & Location Quick Dropdown */}
+            <div className="relative">
+              <button
+                className="hidden xl:flex items-center gap-space-xs px-space-sm py-space-xs rounded-xl bg-surface-container-low hover:bg-surface-container hover:text-on-surface text-on-surface-variant transition-colors text-left"
+                type="button"
+                onClick={() => setIsLocationDropdownOpen(!isLocationDropdownOpen)}
+              >
+                <span className="material-symbols-outlined text-primary text-base">location_on</span>
+                <div className="flex flex-col">
+                  <span className="font-label-sm text-label-sm text-outline">Deliver to</span>
+                  <span className="font-label-md text-label-md text-on-surface font-semibold truncate max-w-[140px]">
+                    {deliverTo}
+                  </span>
+                </div>
+                <span className="material-symbols-outlined text-outline text-sm">expand_more</span>
+              </button>
+
+              {isLocationDropdownOpen && (
+                <div className="absolute left-0 top-full pt-space-xs z-50 w-64">
+                  <div className="bg-surface-container-lowest rounded-xl shadow-[0_12px_32px_-4px_rgba(15,23,42,0.15)] p-space-xs flex flex-col gap-space-2xs border border-surface-container">
+                    {[
+                      { city: 'Kothrud, Pune 411038', state: 'Maharashtra' },
+                      { city: 'FC Road, Pune 411004', state: 'Maharashtra' },
+                      { city: 'Indiranagar, Bengaluru 560038', state: 'Karnataka' },
+                      { city: 'HSR Layout, Bengaluru 560102', state: 'Karnataka' },
+                      { city: 'Bandra West, Mumbai 400050', state: 'Maharashtra' },
+                      { city: 'Connaught Place, New Delhi 110001', state: 'Delhi NCR' }
+                    ].map((loc) => (
+                      <button
+                        key={loc.city}
+                        className="px-space-sm py-space-xs font-label-md text-label-md rounded-lg text-on-surface hover:bg-surface-container flex items-center justify-between text-left"
+                        onClick={() => {
+                          setDeliverTo(loc.city);
+                          setIsLocationDropdownOpen(false);
+                        }}
+                      >
+                        <span className="truncate">{loc.city}</span>
+                        <span className="text-[10px] text-outline ml-1">{loc.state}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Quick Search in header */}
@@ -522,7 +641,7 @@ export default function BuyerHome() {
               </span>
               <input
                 className="w-full bg-transparent border-0 outline-none text-on-surface placeholder:text-outline font-body-sm text-body-sm"
-                placeholder="Search products, certified vendors, brands..."
+                placeholder="Search biryani, kirana, salon stylists, box cricket..."
                 type="text"
                 value={searchQuery}
                 onChange={(e) => {
@@ -536,7 +655,7 @@ export default function BuyerHome() {
             </div>
           </div>
 
-          {/* Controls: Palette Dots, Language, Notifications, Profile */}
+          {/* Controls: Palette Dots, Language, Tray, Profile */}
           <div className="flex items-center gap-space-sm shrink-0">
             {/* 4 Theme Dots */}
             <div className="hidden 2xl:flex items-center bg-surface-container-low p-space-2xs rounded-full gap-space-2xs">
@@ -597,11 +716,11 @@ export default function BuyerHome() {
                 <div className="absolute right-0 top-full pt-space-xs z-50 w-44">
                   <div className="bg-surface-container-lowest rounded-xl shadow-[0_12px_32px_-4px_rgba(15,23,42,0.15)] p-space-xs flex flex-col gap-space-2xs border border-surface-container">
                     {[
-                      { code: 'EN · United States', label: 'English (US)', flag: '🇺🇸' },
-                      { code: 'ES · España', label: 'Español', flag: '🇪🇸' },
-                      { code: 'FR · France', label: 'Français', flag: '🇫🇷' },
-                      { code: 'DE · Deutschland', label: 'Deutsch', flag: '🇩🇪' },
-                      { code: 'HI · भारत', label: 'हिन्दी', flag: '🇮🇳' }
+                      { code: 'HI · भारत', label: 'हिन्दी', flag: '🇮🇳' },
+                      { code: 'EN · India', label: 'English (India)', flag: '🇮🇳' },
+                      { code: 'MR · महाराष्ट्र', label: 'मराठी', flag: '🇮🇳' },
+                      { code: 'TA · தமிழ்', label: 'தமிழ்', flag: '🇮🇳' },
+                      { code: 'TE · తెలుగు', label: 'తెలుగు', flag: '🇮🇳' }
                     ].map((l) => (
                       <button
                         key={l.code}
@@ -635,31 +754,30 @@ export default function BuyerHome() {
               )}
             </button>
 
-            {/* User Profile Avatar & Menu */}
+            {/* Authenticated User Profile Avatar & Menu */}
             <div className="relative">
               <button
                 className="flex items-center gap-space-xs p-space-2xs rounded-full hover:bg-surface-container-low transition-colors"
                 type="button"
                 onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
               >
-                <img
-                  alt="Profile"
-                  className="w-8 h-8 rounded-full object-cover ring-2 ring-primary/20"
-                  src={currentUser.avatar}
-                />
+                <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-sm ring-2 ring-primary/30">
+                  {currentUser.fullName ? currentUser.fullName.charAt(0) : 'U'}
+                </div>
                 <span className="material-symbols-outlined text-outline text-sm hidden sm:inline">
                   expand_more
                 </span>
               </button>
 
               {isProfileDropdownOpen && (
-                <div className="absolute right-0 top-full pt-space-xs z-50 w-56">
+                <div className="absolute right-0 top-full pt-space-xs z-50 w-60">
                   <div className="bg-surface-container-lowest rounded-xl shadow-[0_12px_32px_-4px_rgba(15,23,42,0.15)] p-space-sm flex flex-col gap-space-2xs border border-surface-container">
                     <div className="px-space-sm py-space-xs">
                       <p className="font-label-md text-label-md font-semibold text-on-surface">
-                        {currentUser.fullName}
+                        {currentUser.fullName || 'Rahul Deshmukh'}
                       </p>
                       <p className="font-label-sm text-label-sm text-outline truncate">{currentUser.email}</p>
+                      <p className="font-mono text-[11px] text-secondary mt-0.5">{currentUser.phone || '+91 98901 23456'}</p>
                     </div>
                     <div className="h-px bg-surface-container-high my-space-2xs" />
                     <button
@@ -670,16 +788,8 @@ export default function BuyerHome() {
                       }}
                     >
                       <span className="material-symbols-outlined text-base">person</span>
-                      Profile & Security
+                      Profile & Email OTP
                     </button>
-                    <a
-                      className="flex items-center gap-space-sm px-space-sm py-space-xs font-label-md text-label-md rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors"
-                      href="#marketplace-feed"
-                      onClick={() => setIsProfileDropdownOpen(false)}
-                    >
-                      <span className="material-symbols-outlined text-base">inventory_2</span>
-                      Past Orders/Bookings
-                    </a>
                     <a
                       className="flex items-center gap-space-sm px-space-sm py-space-xs font-label-md text-label-md rounded-lg text-secondary font-semibold hover:bg-surface-container transition-colors"
                       href="http://localhost:3001"
@@ -687,17 +797,14 @@ export default function BuyerHome() {
                       rel="noreferrer"
                     >
                       <span className="material-symbols-outlined text-base">storefront</span>
-                      Seller Dashboard
+                      Switch to Seller Portal
                     </a>
                     <button
-                      className="flex items-center gap-space-sm px-space-sm py-space-xs font-label-md text-label-md rounded-lg text-error hover:bg-error-container/20 transition-colors text-left"
-                      onClick={() => {
-                        setIsAuthOpen(true);
-                        setIsProfileDropdownOpen(false);
-                      }}
+                      className="flex items-center gap-space-sm px-space-sm py-space-xs font-label-md text-label-md rounded-lg text-error hover:bg-error-container/20 transition-colors text-left font-semibold"
+                      onClick={handleLogout}
                     >
                       <span className="material-symbols-outlined text-base">logout</span>
-                      Switch Account
+                      Sign Out (Exit to Login)
                     </button>
                   </div>
                 </div>
@@ -716,25 +823,31 @@ export default function BuyerHome() {
             }`}
             onClick={() => setActiveFilterTab('all')}
           >
-            Explore Products
+            Explore All India Hubs
           </button>
           <button
             className="px-space-sm py-space-2xs text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors"
             onClick={() => setActiveFilterTab('dining')}
           >
-            Verified Vendors
-          </button>
-          <button
-            className="px-space-sm py-space-2xs text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors"
-            onClick={() => setIsTrayOpen(true)}
-          >
-            My Tray
+            Dining & Street Food
           </button>
           <button
             className="px-space-sm py-space-2xs text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors"
             onClick={() => setActiveFilterTab('grocery')}
           >
-            Flash Deals
+            Daily Kirana & Mandi
+          </button>
+          <button
+            className="px-space-sm py-space-2xs text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors"
+            onClick={() => setActiveFilterTab('wellness')}
+          >
+            Salons & Parlours
+          </button>
+          <button
+            className="px-space-sm py-space-2xs text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors"
+            onClick={() => setActiveFilterTab('turf')}
+          >
+            Box Cricket & Turfs
           </button>
         </nav>
       </header>
@@ -747,7 +860,7 @@ export default function BuyerHome() {
           {/* Top Command Center & Context Header */}
           <section className="w-full max-w-7xl mx-auto px-margin-mobile lg:px-margin pt-space-md pb-space-lg">
             <div className="flex flex-col gap-space-md">
-              {/* Utility Control Strip: Personalization, Palettes & Locales */}
+              {/* Utility Control Strip */}
               <div className="flex flex-wrap items-center justify-between gap-space-sm bg-surface-container-low rounded-xl px-space-md py-space-xs shadow-sm">
                 <div className="flex items-center gap-space-md flex-wrap">
                   <div className="flex items-center gap-space-xs">
@@ -884,7 +997,7 @@ export default function BuyerHome() {
                 </div>
               </div>
 
-              {/* Main Omnisearch Shell with Voice & Trending Hot Chips */}
+              {/* Main Omnisearch Shell with Voice & Indian Trending Hot Chips */}
               <div className="relative bg-surface-container-lowest rounded-2xl p-space-md shadow-md flex flex-col gap-space-sm border border-surface-container">
                 <div className="flex items-center gap-space-sm bg-surface-container-low rounded-xl px-space-md py-space-sm transition-all focus-within:bg-surface-container focus-within:shadow-xs">
                   <span className="material-symbols-outlined text-primary text-xl">search</span>
@@ -894,7 +1007,7 @@ export default function BuyerHome() {
                     placeholder={
                       isVoiceActive
                         ? 'Listening... Speak your order or venue now'
-                        : 'Search dishes, groceries, salon stylists, turf & court slots...'
+                        : 'Search biryani, kirana, salon stylists, box cricket...'
                     }
                     type="text"
                     value={searchQuery}
@@ -928,18 +1041,19 @@ export default function BuyerHome() {
                   </button>
                 </div>
 
-                {/* Hot Trending Quick Chips */}
+                {/* Hot Trending Quick Chips (Indian Market) */}
                 <div className="flex items-center gap-space-xs overflow-x-auto pb-space-2xs scrollbar-none">
                   <span className="font-label-sm text-label-sm text-outline uppercase tracking-wider shrink-0 flex items-center gap-1">
                     <span className="material-symbols-outlined text-xs text-amber-500 animate-pulse">trending_up</span>{' '}
                     Hot:
                   </span>
                   {[
-                    { label: 'Woodfire Pizza · 22m', query: 'Woodfire Sourdough Pizza', color: 'hover:bg-primary-container hover:text-on-primary' },
-                    { label: 'Avocado 4-pack (12m delivery)', query: 'Organic Hass Avocados', color: 'hover:bg-secondary hover:text-on-secondary' },
-                    { label: 'Swedish Massage · 4.9★', query: 'Deep Tissue Spa Therapist', color: 'hover:bg-surface-tint hover:text-on-primary' },
-                    { label: 'Football Turf (Tonight 8 PM)', query: 'Floodlit Football Turf 7v7', color: 'hover:bg-tertiary hover:text-on-tertiary' },
-                    { label: 'Fresh Brioche', query: 'Artisan Bakery Croissants', color: 'hover:bg-primary-container hover:text-on-primary' }
+                    { label: 'Dum Handi Biryani · 20m', query: 'Hyderabadi Dum Biryani', color: 'hover:bg-primary-container hover:text-on-primary' },
+                    { label: 'A2 Desi Cow Milk & Eggs (10m)', query: 'A2 Milk', color: 'hover:bg-secondary hover:text-on-secondary' },
+                    { label: 'Box Cricket Turf (Tonight 8 PM)', query: 'Box Cricket Arena', color: 'hover:bg-tertiary hover:text-on-tertiary' },
+                    { label: 'Beard Trim & D-Tan (₹299)', query: 'Precision Cut', color: 'hover:bg-surface-tint hover:text-on-primary' },
+                    { label: 'Fresh Mandi Veggie Box', query: 'Fresh Mandi', color: 'hover:bg-secondary hover:text-on-secondary' },
+                    { label: 'Chai & Bun Maska', query: 'Chai & Bun Maska', color: 'hover:bg-primary-container hover:text-on-primary' }
                   ].map((chip) => (
                     <button
                       key={chip.query}
@@ -959,46 +1073,45 @@ export default function BuyerHome() {
           </section>
 
           {/* =========================================================================
-              THE 4 PILLAR EXPERIENCE: 4 CORE LIFELINES QUADRANT
+              THE 4 PILLAR EXPERIENCE: 4 CORE INDIAN LIFELINES QUADRANT
              ========================================================================= */}
           <section className="w-full max-w-7xl mx-auto px-margin-mobile lg:px-margin py-space-md">
             <div className="flex flex-col gap-space-lg">
               <div className="flex flex-col md:flex-row md:items-end justify-between gap-space-sm">
                 <div>
                   <span className="font-label-sm text-label-sm text-primary uppercase font-bold tracking-widest">
-                    Multi-Vendor Hyperlocal Network
+                    Multi-Vendor Hyperlocal Network • Bharat
                   </span>
                   <h2 className="font-headline-lg text-headline-lg font-bold text-on-surface tracking-tight mt-1">
                     Four Vital Lifelines. One Seamless Marketplace.
                   </h2>
                 </div>
                 <p className="font-body-sm text-body-sm text-on-surface-variant max-w-md">
-                  Instant booking, on-demand dispatch, verified vendor guarantees, and synchronized inventory across urban
-                  zones.
+                  Instant booking, 10-minute kirana dispatch, verified Indian vendor guarantees, and real-time inventory across urban zones.
                 </p>
               </div>
 
               {/* 4 Core Hub Cards Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-md">
-                {/* 1. Dining & Gourmet */}
+                {/* 1. Dining & Street Gourmet */}
                 <div className="group relative rounded-2xl bg-surface-container-lowest overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between hover:-translate-y-1 stitch-card-hover border border-surface-container">
                   <div className="relative h-48 w-full overflow-hidden bg-surface-container">
                     <img
-                      alt="Artisan culinary plating"
+                      alt="Authentic Dum Biryani and Indian Gourmet Culinary Plating"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuBSxxlytwD565CGNhF3hlfrpFN_eMbjnrgiItZA8Bh9lTf1WyR7zTWdZiHx8ocRyYhneAakjB3VvIWCPIpUXIYedU568kjmOvIRKRJ0iwfGQHNDSWDdYN1ZYD_3IaT3N2y3oU1A90FdEOw_Kd-e7X2bSz8InDYYEB76INn1nieepJ43XgVOW12BjEatJM0MHkPfTkyuNZK8F8QwR0KZcRSWeOhy5FXq6moygUsI6LI"
+                      src="https://images.unsplash.com/photo-1589302168068-964664d93dc0?auto=format&fit=crop&w=1200&q=80"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-inverse-surface/80 via-transparent to-transparent" />
                     <div className="absolute top-3 left-3 bg-surface/90 backdrop-blur-md px-space-xs py-space-2xs rounded-full flex items-center gap-1 shadow-sm">
                       <span className="material-symbols-outlined text-xs text-amber-500">star</span>
-                      <span className="font-label-sm text-label-sm font-bold text-on-surface">4.92 (18k+)</span>
+                      <span className="font-label-sm text-label-sm font-bold text-on-surface">4.94 (24k+)</span>
                     </div>
                     <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-inverse-on-surface">
                       <span className="font-label-md text-label-md font-semibold flex items-center gap-1">
-                        <span className="material-symbols-outlined text-sm text-secondary-fixed">bolt</span> Avg ETA 24 mins
+                        <span className="material-symbols-outlined text-sm text-secondary-fixed">bolt</span> Avg ETA 20 mins
                       </span>
                       <span className="font-label-sm text-label-sm bg-primary/80 backdrop-blur-md px-2 py-0.5 rounded-full text-on-primary">
-                        Table Bookings
+                        Table & Takeaway
                       </span>
                     </div>
                   </div>
@@ -1008,10 +1121,10 @@ export default function BuyerHome() {
                         <span className="w-6 h-6 rounded-md bg-amber-100 flex items-center justify-center text-amber-800">
                           <span className="material-symbols-outlined text-sm">restaurant</span>
                         </span>
-                        <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">Dining & Gourmet</h3>
+                        <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">Dining & Street Gourmet</h3>
                       </div>
                       <p className="font-body-sm text-body-sm text-on-surface-variant line-clamp-2">
-                        Chef specials, woodfired pizzerias, patisseries, and live table reservation locks.
+                        Authentic Hyderabadi dum biryani, woodfired paneer pizzas, street chaat, and live table reservation locks.
                       </p>
                     </div>
                     <div className="pt-space-xs flex items-center justify-between">
@@ -1031,23 +1144,23 @@ export default function BuyerHome() {
                   </div>
                 </div>
 
-                {/* 2. Grocery & Pantry */}
+                {/* 2. Kirana, Mandi & Daily Dairy */}
                 <div className="group relative rounded-2xl bg-surface-container-lowest overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between hover:-translate-y-1 stitch-card-hover border border-surface-container">
                   <div className="relative h-48 w-full overflow-hidden bg-surface-container">
                     <img
-                      alt="Fresh produce and groceries"
+                      alt="Fresh Mandi farm produce and vegetables"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuDTC_0HeUP7WZifiTlUyIVkho_Prj2nKiwCJA_wjkoark1fQejOZ_tPALgGOTCnrRejLhGsc3IaktlW7UxAMkjCByfQkt7YYx6NOxz8mHgjOGs_p9lhKQiIVgBU7nAQWiIs9dAvBW1DTIwxiyxKuyYrncB2Kwn7NeU1yx9uphK8nzPTdOmUECwFR_qmNSfrTldYW3va1SdOh1gp14AhydkQgj4MlAzusL9FPx8X_Qc"
+                      src="https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=80"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-inverse-surface/80 via-transparent to-transparent" />
                     <div className="absolute top-3 left-3 bg-secondary text-on-secondary px-space-xs py-space-2xs rounded-full flex items-center gap-1 shadow-sm font-label-sm text-label-sm font-bold">
                       <span className="material-symbols-outlined text-xs">timer</span>
-                      <span>15-Min Instant</span>
+                      <span>10-Min Kirana</span>
                     </div>
                     <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-inverse-on-surface">
-                      <span className="font-label-md text-label-md font-semibold">Cold-Chain Certified</span>
+                      <span className="font-label-md text-label-md font-semibold">Cold-Chain Desi Dairy</span>
                       <span className="font-label-sm text-label-sm bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded-full font-bold">
-                        Free Delivery $25+
+                        Free Delivery ₹199+
                       </span>
                     </div>
                   </div>
@@ -1057,10 +1170,10 @@ export default function BuyerHome() {
                         <span className="w-6 h-6 rounded-md bg-emerald-100 flex items-center justify-center text-emerald-800">
                           <span className="material-symbols-outlined text-sm">local_mall</span>
                         </span>
-                        <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">Grocery & Pantry</h3>
+                        <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">Kirana, Mandi & Dairy</h3>
                       </div>
                       <p className="font-body-sm text-body-sm text-on-surface-variant line-clamp-2">
-                        Direct farm produce, A2 organic dairy, pantry staples, and same-hour pantry replenishment.
+                        Fresh mandi vegetables, A2 Gir cow milk, chakki fresh atta, pulses, and same-hour kirana replenishment.
                       </p>
                     </div>
                     <div className="pt-space-xs flex items-center justify-between">
@@ -1080,13 +1193,13 @@ export default function BuyerHome() {
                   </div>
                 </div>
 
-                {/* 3. Salons & Wellness Spas */}
+                {/* 3. Salons & Personal Grooming */}
                 <div className="group relative rounded-2xl bg-surface-container-lowest overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between hover:-translate-y-1 stitch-card-hover border border-surface-container">
                   <div className="relative h-48 w-full overflow-hidden bg-surface-container">
                     <img
-                      alt="Modern serene luxury salon interior"
+                      alt="Modern luxury unisex salon and spa studio"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuCvVN_wO84FJTIz90YmRccXo57h47LxFzxgy1rzRQdRLC9uhwIymSODVx60rNdZyx1FsslhDJBjfqvPhQzms_O3VebQBEhsFYkjh7UIhQ4v08sEwPNO4UYJeLn86YkDQ67IcpCdh9vX3T5iltPQFlFqObX-O0EsEX_VGyOdJw7JrBxF4VSnr1EIBIyA1jU68kjmMrCY4X6Ephb2Ybm_pIUKRiHKuvbpz_0zmlkicQA"
+                      src="https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=1200&q=80"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-inverse-surface/80 via-transparent to-transparent" />
                     <div className="absolute top-3 left-3 bg-surface/90 backdrop-blur-md px-space-xs py-space-2xs rounded-full flex items-center gap-1 shadow-sm">
@@ -1096,7 +1209,7 @@ export default function BuyerHome() {
                     <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-inverse-on-surface">
                       <span className="font-label-md text-label-md font-semibold">Today: 14 Open Slots</span>
                       <span className="font-label-sm text-label-sm bg-surface-tint text-on-primary px-2 py-0.5 rounded-full font-bold">
-                        Zero Wait
+                        Zero Wait Token
                       </span>
                     </div>
                   </div>
@@ -1106,16 +1219,16 @@ export default function BuyerHome() {
                         <span className="w-6 h-6 rounded-md bg-purple-100 flex items-center justify-center text-purple-800">
                           <span className="material-symbols-outlined text-sm">spa</span>
                         </span>
-                        <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">Salons & Wellness</h3>
+                        <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">Salons & Grooming</h3>
                       </div>
                       <p className="font-body-sm text-body-sm text-on-surface-variant line-clamp-2">
-                        Precision hair sculpting, bespoke facials, deep tissue massage, and personal therapists.
+                        Precision fade cuts, royal beard sculpting, bridal facials, Ayurvedic head massages, and home therapists.
                       </p>
                     </div>
                     <div className="pt-space-xs flex items-center justify-between">
                       <div className="flex flex-col">
-                        <span className="font-label-sm text-label-sm text-outline">Verified Venues</span>
-                        <span className="font-headline-sm text-headline-sm font-bold text-on-surface">62 Salons</span>
+                        <span className="font-label-sm text-label-sm text-outline">Verified Studios</span>
+                        <span className="font-headline-sm text-headline-sm font-bold text-on-surface">62 Studios</span>
                       </div>
                       <button
                         className="px-space-sm py-space-xs rounded-xl bg-surface-container hover:bg-primary-container hover:text-on-primary font-label-md text-label-md font-semibold text-on-surface transition-colors flex items-center gap-1 stitch-btn"
@@ -1129,23 +1242,23 @@ export default function BuyerHome() {
                   </div>
                 </div>
 
-                {/* 4. Sports & Turf Booking */}
+                {/* 4. Box Cricket & Sports Turfs */}
                 <div className="group relative rounded-2xl bg-surface-container-lowest overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between hover:-translate-y-1 stitch-card-hover border border-surface-container">
                   <div className="relative h-48 w-full overflow-hidden bg-surface-container">
                     <img
-                      alt="Lush green floodlit FIFA synthetic football turf arena"
+                      alt="Floodlit synthetic turf in India under night lights"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuD4Z2ydl-Ue2KcZwxwg8xcu29fGMBUDD1tsuGPXYzcIOEl_nnnzGtHa9NvC9TFOCAqlbK0ZWPl4O2uqAKAZU_jp0Qw32hiq8IPjcz98wBFYFhao84Hs3Pq98x7FpuOkLNqf5i-l35jNekvPd0rIluP9dkW3ktU2hq1fzr3xFGw21hOKbFSyWXNpdRR4WPYK5wsjNmGdu56QMnuFwwArPAi3wb45nXnTlSvFdjsQFGQ"
+                      src="https://images.unsplash.com/photo-1529900748604-07564a03e7a6?auto=format&fit=crop&w=1200&q=80"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-inverse-surface/80 via-transparent to-transparent" />
                     <div className="absolute top-3 left-3 bg-tertiary text-on-tertiary px-space-xs py-space-2xs rounded-full flex items-center gap-1 shadow-sm font-label-sm text-label-sm font-bold">
-                      <span className="material-symbols-outlined text-xs">sports_soccer</span>
-                      <span>Turf & Courts</span>
+                      <span className="material-symbols-outlined text-xs">sports_cricket</span>
+                      <span>Box Cricket & 7v7</span>
                     </div>
                     <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-inverse-on-surface">
-                      <span className="font-label-md text-label-md font-semibold">Live Calendar Sync</span>
+                      <span className="font-label-md text-label-md font-semibold">Live Slot Sync</span>
                       <span className="font-label-sm text-label-sm bg-tertiary-fixed text-on-tertiary-container px-2 py-0.5 rounded-full font-bold">
-                        Split Bills
+                        UPI Split Bills
                       </span>
                     </div>
                   </div>
@@ -1153,12 +1266,12 @@ export default function BuyerHome() {
                     <div>
                       <div className="flex items-center gap-space-xs mb-1">
                         <span className="w-6 h-6 rounded-md bg-amber-100 flex items-center justify-center text-amber-900">
-                          <span className="material-symbols-outlined text-sm">sports_tennis</span>
+                          <span className="material-symbols-outlined text-sm">sports_soccer</span>
                         </span>
-                        <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">Sports & Turfs</h3>
+                        <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">Turfs & Box Cricket</h3>
                       </div>
                       <p className="font-body-sm text-body-sm text-on-surface-variant line-clamp-2">
-                        Indoor badminton wooden courts, 7-a-side floodlit football turfs, cricket nets & gear rentals.
+                        Floodlit artificial turf pitches, box cricket arenas, wooden badminton courts, and night cricket net practice.
                       </p>
                     </div>
                     <div className="pt-space-xs flex items-center justify-between">
@@ -1182,7 +1295,7 @@ export default function BuyerHome() {
           </section>
 
           {/* =========================================================================
-              LIVE PULSE STATS STRIP (Real-time buyer telemetry)
+              LIVE PULSE STATS STRIP (India Telemetry)
              ========================================================================= */}
           <section className="w-full max-w-7xl mx-auto px-margin-mobile lg:px-margin py-space-sm">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-space-sm bg-surface-container-low p-space-md rounded-2xl shadow-xs border border-surface-container">
@@ -1191,8 +1304,8 @@ export default function BuyerHome() {
                   <span className="material-symbols-outlined text-xl">speed</span>
                 </div>
                 <div>
-                  <p className="font-headline-sm text-headline-sm font-bold text-on-surface">19.4m</p>
-                  <p className="font-label-sm text-label-sm text-on-surface-variant">Median Delivery Time</p>
+                  <p className="font-headline-sm text-headline-sm font-bold text-on-surface">14.2m</p>
+                  <p className="font-label-sm text-label-sm text-on-surface-variant">Median Dispatch Drop</p>
                 </div>
               </div>
               <div className="flex items-center gap-space-sm">
@@ -1201,7 +1314,7 @@ export default function BuyerHome() {
                 </div>
                 <div>
                   <p className="font-headline-sm text-headline-sm font-bold text-on-surface">100%</p>
-                  <p className="font-label-sm text-label-sm text-on-surface-variant">Vetted Local Merchants</p>
+                  <p className="font-label-sm text-label-sm text-on-surface-variant">FSSAI & GST Vetted</p>
                 </div>
               </div>
               <div className="flex items-center gap-space-sm">
@@ -1209,16 +1322,16 @@ export default function BuyerHome() {
                   <span className="material-symbols-outlined text-xl">calendar_month</span>
                 </div>
                 <div>
-                  <p className="font-headline-sm text-headline-sm font-bold text-on-surface">312</p>
+                  <p className="font-headline-sm text-headline-sm font-bold text-on-surface">418</p>
                   <p className="font-label-sm text-label-sm text-on-surface-variant">Slots Booked Today</p>
                 </div>
               </div>
               <div className="flex items-center gap-space-sm">
                 <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center text-primary shrink-0">
-                  <span className="material-symbols-outlined text-xl">currency_exchange</span>
+                  <span className="material-symbols-outlined text-xl">currency_rupee</span>
                 </div>
                 <div>
-                  <p className="font-headline-sm text-headline-sm font-bold text-on-surface">Escrow</p>
+                  <p className="font-headline-sm text-headline-sm font-bold text-on-surface">UPI Escrow</p>
                   <p className="font-label-sm text-label-sm text-on-surface-variant">Buyer Protection Assured</p>
                 </div>
               </div>
@@ -1226,7 +1339,7 @@ export default function BuyerHome() {
           </section>
 
           {/* =========================================================================
-              INTERACTIVE FEED: DYNAMIC TABS & LIVE DEALS GRID
+              INTERACTIVE FEED: DYNAMIC TABS & LIVE INDIAN DEALS GRID
              ========================================================================= */}
           <section id="marketplace-feed" className="w-full max-w-7xl mx-auto px-margin-mobile lg:px-margin pt-space-lg pb-space-2xl">
             <div className="flex flex-col gap-space-lg">
@@ -1237,17 +1350,17 @@ export default function BuyerHome() {
                     Trending Deals & Ready-To-Book Nearby
                   </h3>
                   <p className="font-body-sm text-body-sm text-on-surface-variant">
-                    Fresh inventory updated by local vendors in real-time
+                    Fresh mandi vegetables, chef specials, salon stylists & box cricket slots
                   </p>
                 </div>
                 {/* Category Tab Buttons */}
                 <div className="flex items-center gap-space-2xs bg-surface-container-low p-space-2xs rounded-xl overflow-x-auto">
                   {[
                     { id: 'all', label: 'All Offers' },
-                    { id: 'dining', label: 'Dining Special' },
-                    { id: 'grocery', label: 'Pantry Bundles' },
+                    { id: 'dining', label: 'Street & Gourmet' },
+                    { id: 'grocery', label: 'Kirana & Mandi' },
                     { id: 'wellness', label: 'Salon Deals' },
-                    { id: 'turf', label: 'Court Openings' }
+                    { id: 'turf', label: 'Box Cricket & Turfs' }
                   ].map((tab) => (
                     <button
                       key={tab.id}
@@ -1311,11 +1424,11 @@ export default function BuyerHome() {
                         </p>
                         <div className="mt-2 flex items-baseline gap-space-xs">
                           <span className="font-headline-sm text-headline-sm font-bold text-on-surface">
-                            ${card.price.toFixed(2)}
+                            ₹{card.price.toFixed(2)}
                           </span>
                           {card.originalPrice && (
                             <span className="font-label-md text-label-md text-outline line-through">
-                              ${card.originalPrice.toFixed(2)}
+                              ₹{card.originalPrice.toFixed(2)}
                             </span>
                           )}
                           <span className="font-label-sm text-label-sm text-secondary font-bold ml-auto flex items-center gap-0.5">
@@ -1339,7 +1452,7 @@ export default function BuyerHome() {
                           type="button"
                         >
                           <span className="material-symbols-outlined text-sm">event_available</span>
-                          <span>{card.category === 'turf' ? 'Reserve Court Now' : 'Select Stylist & Slot'}</span>
+                          <span>{card.category === 'turf' ? 'Reserve Box Cricket / Turf' : 'Select Stylist & Slot'}</span>
                         </button>
                       ) : (
                         <button
@@ -1367,7 +1480,7 @@ export default function BuyerHome() {
       </main>
 
       {/* =========================================================================
-          5-MINUTE ATOMIC SLOT RESERVATION MODAL
+          5-MINUTE ATOMIC SLOT RESERVATION MODAL (INDIAN RUPEES & NPCI UPI)
          ========================================================================= */}
       {isSlotModalOpen && selectedServiceItem && (
         <div className="fixed inset-0 z-50 bg-inverse-surface/60 backdrop-blur-sm flex items-center justify-center p-space-md animate-in fade-in duration-200">
@@ -1376,7 +1489,7 @@ export default function BuyerHome() {
               <div className="flex items-center gap-space-xs">
                 <span className="material-symbols-outlined text-primary text-2xl">calendar_month</span>
                 <h4 className="font-headline-sm text-headline-sm font-bold text-on-surface">
-                  {bookingConfirmedReceipt ? 'Booking Confirmed!' : selectedServiceItem.title}
+                  {bookingConfirmedReceipt ? 'Slot Confirmed!' : selectedServiceItem.title}
                 </h4>
               </div>
               <button
@@ -1395,7 +1508,7 @@ export default function BuyerHome() {
                 </div>
                 <div>
                   <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">
-                    Pass Generated & Locked in Escrow
+                    Booking Confirmed & Escrow Locked!
                   </h3>
                   <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
                     Receipt #{bookingConfirmedReceipt.receiptId} • Token #{bookingConfirmedReceipt.tokenNumber}
@@ -1403,6 +1516,9 @@ export default function BuyerHome() {
                 </div>
                 <div className="bg-surface-container p-space-sm rounded-xl font-mono text-sm text-primary font-bold">
                   {bookingConfirmedReceipt.qrVerificationCode}
+                </div>
+                <div className="text-xs text-outline">
+                  Show this pass or token at the venue for instant entry with zero wait time.
                 </div>
                 <button
                   className="w-full py-space-xs px-space-md rounded-xl bg-primary text-on-primary font-label-md text-label-md font-semibold"
@@ -1415,7 +1531,7 @@ export default function BuyerHome() {
               <>
                 <div className="flex flex-col gap-space-xs">
                   <p className="font-body-sm text-body-sm text-on-surface-variant font-medium">
-                    {selectedServiceItem.vendorName} • ${selectedServiceItem.price.toFixed(2)}
+                    {selectedServiceItem.vendorName} • ₹{selectedServiceItem.price.toFixed(2)}
                   </p>
                   <span className="font-label-sm text-label-sm text-outline">
                     Choose an available slot window for today:
@@ -1462,13 +1578,13 @@ export default function BuyerHome() {
                       </div>
                     </div>
                     <span className="font-mono font-bold text-lg text-amber-800 dark:text-amber-300">
-                      ₹{(selectedServiceItem.price * 83).toFixed(0)}
+                      ₹{selectedServiceItem.price.toFixed(0)}
                     </span>
                   </div>
                 ) : (
                   <div className="bg-surface-container-low rounded-xl p-space-sm flex items-center gap-2 text-on-surface-variant font-label-sm text-label-sm">
                     <span className="material-symbols-outlined text-base text-primary">lock_clock</span>
-                    <span>5-Minute atomic holding lock guarantees no double bookings.</span>
+                    <span>5-Minute atomic holding lock guarantees no double bookings across the venue.</span>
                   </div>
                 )}
 
@@ -1483,15 +1599,15 @@ export default function BuyerHome() {
                       onClick={handleLockSlot}
                       type="button"
                     >
-                      {isLocking ? 'Locking Slot...' : 'Lock Slot (5 Mins)'}
+                      {isLocking ? 'Holding Slot...' : 'Lock Slot (5 Mins)'}
                     </button>
                   ) : (
                     <button
-                      className="px-space-md py-space-xs rounded-xl bg-secondary text-on-secondary font-label-md text-label-md font-semibold shadow-sm hover:opacity-95 animate-pulse"
+                      className="px-space-md py-space-xs rounded-xl bg-secondary text-on-secondary font-label-md text-label-md font-semibold shadow-sm hover:opacity-95 animate-pulse flex items-center gap-1"
                       onClick={handleConfirmBooking}
                       type="button"
                     >
-                      Confirm with UPI
+                      <span>Pay ₹{selectedServiceItem.price} with UPI</span>
                     </button>
                   )}
                 </div>
@@ -1502,7 +1618,7 @@ export default function BuyerHome() {
       )}
 
       {/* =========================================================================
-          SLIDE-OVER TRAY / CART DRAWER
+          SLIDE-OVER TRAY / CART DRAWER (INDIAN RUPEES & NPCI UPI)
          ========================================================================= */}
       {isTrayOpen && (
         <div className="fixed inset-0 z-50 bg-inverse-surface/60 backdrop-blur-sm flex justify-end">
@@ -1511,7 +1627,7 @@ export default function BuyerHome() {
               <div className="flex items-center justify-between pb-space-md border-b border-surface-container">
                 <div className="flex items-center gap-space-xs">
                   <span className="material-symbols-outlined text-primary text-2xl">shopping_bag</span>
-                  <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">Your Food & Pantry Tray</h3>
+                  <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">Your Food & Kirana Tray</h3>
                 </div>
                 <button
                   className="p-1 rounded-full hover:bg-surface-container text-outline hover:text-on-surface"
@@ -1542,7 +1658,7 @@ export default function BuyerHome() {
                       <img alt={t.item.title} className="w-12 h-12 rounded-lg object-cover" src={t.item.image} />
                       <div className="flex-1 truncate">
                         <p className="font-label-md text-label-md font-bold text-on-surface truncate">{t.item.title}</p>
-                        <p className="font-label-sm text-label-sm text-outline">${t.item.price.toFixed(2)} each</p>
+                        <p className="font-label-sm text-label-sm text-outline">₹{t.item.price.toFixed(2)} each</p>
                       </div>
                       <div className="flex items-center gap-1 bg-surface-container rounded-lg p-1">
                         <button
@@ -1569,30 +1685,30 @@ export default function BuyerHome() {
               <div className="pt-space-md border-t border-surface-container flex flex-col gap-space-sm">
                 <div className="flex justify-between font-label-md text-label-md text-outline">
                   <span>Subtotal</span>
-                  <span>${traySubtotal.toFixed(2)}</span>
+                  <span>₹{traySubtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-label-md text-label-md text-outline">
                   <span>Hyperlocal Dispatch Fee</span>
-                  <span>{trayDeliveryFee === 0 ? 'FREE' : `$${trayDeliveryFee.toFixed(2)}`}</span>
+                  <span>{trayDeliveryFee === 0 ? 'FREE (Orders ₹199+)' : `₹${trayDeliveryFee.toFixed(2)}`}</span>
                 </div>
                 <div className="flex justify-between font-label-md text-label-md text-outline">
                   <span>Taxes & GST (5%)</span>
-                  <span>${trayTaxes.toFixed(2)}</span>
+                  <span>₹{trayTaxes.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-headline-sm text-headline-sm font-bold text-on-surface pt-1 border-t border-surface-container">
                   <span>Total Amount</span>
-                  <span>${trayTotal.toFixed(2)}</span>
+                  <span>₹{trayTotal.toFixed(2)}</span>
                 </div>
                 <button
                   className="w-full mt-2 py-space-sm px-space-md rounded-xl bg-primary text-on-primary font-label-md text-label-md font-bold hover:opacity-95 shadow-md flex items-center justify-center gap-2"
                   onClick={() => {
-                    alert(`Order placed successfully with Escrow Lock for $${trayTotal.toFixed(2)}! Dispatched in 19 mins.`);
+                    alert(`Order placed successfully with Escrow Lock for ₹${trayTotal.toFixed(2)}! Dispatched in 14 mins.`);
                     setTray([]);
                     setIsTrayOpen(false);
                   }}
                 >
-                  <span className="material-symbols-outlined text-lg">lock</span>
-                  <span>Checkout with Direct UPI (${trayTotal.toFixed(2)})</span>
+                  <span className="material-symbols-outlined text-lg">currency_rupee</span>
+                  <span>Checkout with Direct UPI (₹{trayTotal.toFixed(2)})</span>
                 </button>
               </div>
             )}
@@ -1601,27 +1717,8 @@ export default function BuyerHome() {
       )}
 
       {/* =========================================================================
-          MODALS: BUYER AUTH & PROFILE SETTINGS
+          PROFILE SETTINGS MODAL
          ========================================================================= */}
-      {isAuthOpen && (
-        <div className="fixed inset-0 z-50 bg-inverse-surface/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="relative max-w-md w-full">
-            <button
-              className="absolute top-4 right-4 z-10 text-on-surface hover:text-error"
-              onClick={() => setIsAuthOpen(false)}
-            >
-              <span className="material-symbols-outlined">close</span>
-            </button>
-            <BuyerAuth
-              onAuthSuccess={(user) => {
-                setCurrentUser(user);
-                setIsAuthOpen(false);
-              }}
-            />
-          </div>
-        </div>
-      )}
-
       {isSettingsOpen && (
         <ProfileSettingsModal
           user={currentUser}
@@ -1645,11 +1742,11 @@ export default function BuyerHome() {
               src="https://lh3.googleusercontent.com/aida/ALJJyrB4hMSJNjb-iiz-k1hmNy6UyV3rp1ihcP854ZQ1YpJRterKZjfmV_VqiWBsTsIVnC4rG4u52P5QUh-zlIMLR5-h3hr3oAEQWYFeI7wH-2CEFo_94OOmsEKc9PRAHDtDy73GbdCS0Qg40MkV_NL6V4dPjliGF-QkbSDeJ78FNn3vGgK4YrzQFEGqO8ioht67upXkJ3hW7xm8SozGYAIZqtoI9gAZatGEcsT4sTwAeWqR"
             />
             <span className="font-label-lg text-label-lg text-on-surface font-semibold">
-              StreetVerse Marketplace
+              StreetVerse India Marketplace
             </span>
           </div>
           <p className="font-body-sm text-body-sm text-on-surface-variant">
-            © 2026 StreetVerse Platform Inc. Dual-Platform Architecture. All rights reserved.
+            © 2026 StreetVerse Platform India Inc. Dual-Platform Architecture. All rights reserved.
           </p>
         </div>
       </footer>

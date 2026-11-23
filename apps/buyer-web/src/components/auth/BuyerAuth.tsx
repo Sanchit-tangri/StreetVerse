@@ -6,7 +6,10 @@ import {
   AlertCircle, 
   RotateCw,
   Eye,
-  EyeOff
+  EyeOff,
+  Zap,
+  ShieldCheck,
+  MapPin
 } from 'lucide-react';
 
 interface BuyerAuthProps {
@@ -38,6 +41,22 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onAuthSuccess }) => {
   const defaultHeaders = {
     'Content-Type': 'application/json',
     'ngrok-skip-browser-warning': 'true'
+  };
+
+  // Instant 1-Click Demo Login for testing and immediate evaluation
+  const handleQuickDemoLogin = () => {
+    const demoUser = {
+      id: 'c1000000-0000-0000-0000-000000000001',
+      fullName: 'Rahul Deshmukh',
+      phone: '+91 98901 23456',
+      email: 'rahul.d@example.com',
+      address: 'Flat 402, Mayur Colony, Kothrud, Pune 411038',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'
+    };
+    const demoToken = 'streetverse-jwt-demo-rahul-deshmukh-pune';
+    localStorage.setItem('streetverse_buyer_token', demoToken);
+    localStorage.setItem('streetverse_buyer_user', JSON.stringify(demoUser));
+    onAuthSuccess(demoUser, demoToken);
   };
 
   const handleDemoFill = () => {
@@ -92,7 +111,8 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onAuthSuccess }) => {
         startCooldown();
       }
     } catch (err: any) {
-      setError(err.message);
+      // If network fails (e.g. backend offline), provide graceful fallback guidance
+      setError(err.message || 'Connection to server failed. Use 1-Click Demo Login to explore immediately.');
     } finally {
       setLoading(false);
     }
@@ -165,15 +185,35 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onAuthSuccess }) => {
     <div className="auth-wrapper">
       <div className="auth-card">
         
-        {/* Clean Minimal Header */}
+        {/* Header */}
         <div className="auth-header">
           <div className="brand-badge">
             <ShoppingBag size={24} color="#FFF" />
           </div>
           <h1 className="brand-title">StreetVerse</h1>
           <p className="brand-subtitle">
-            {step === 'OTP' ? 'Enter verification code' : isLogin ? 'Welcome back! Sign in to continue' : 'Create your customer account'}
+            Hyperlocal Commerce & Instant Services • India
           </p>
+          <div className="location-pill">
+            <MapPin size={12} color="#059669" />
+            <span>Pune · Bengaluru · Mumbai · Delhi</span>
+          </div>
+        </div>
+
+        {/* 1-Click Quick Demo Button */}
+        <div className="quick-demo-strip">
+          <button
+            type="button"
+            onClick={handleQuickDemoLogin}
+            className="quick-demo-btn"
+          >
+            <Zap size={16} />
+            <span>1-Click Demo Login (Rahul Deshmukh · Pune)</span>
+          </button>
+        </div>
+
+        <div className="divider">
+          <span>OR CONTINUE WITH CREDENTIALS</span>
         </div>
 
         {/* Tab Switcher */}
@@ -184,14 +224,14 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onAuthSuccess }) => {
               onClick={() => { setIsLogin(true); setError(null); }}
               className={`tab-btn ${isLogin ? 'active' : ''}`}
             >
-              Sign In
+              Customer Sign In
             </button>
             <button
               type="button"
               onClick={() => { setIsLogin(false); setError(null); }}
               className={`tab-btn ${!isLogin ? 'active' : ''}`}
             >
-              Register
+              New Registration
             </button>
           </div>
         )}
@@ -217,13 +257,13 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onAuthSuccess }) => {
             {isLogin ? (
               <>
                 <div className="form-group">
-                  <label className="form-label">Phone or Email</label>
+                  <label className="form-label">Mobile Number or Email</label>
                   <input
                     type="text"
                     required
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder="name@example.com or phone"
+                    placeholder="+91 98901 23456 or rahul.d@example.com"
                     className="form-input"
                   />
                 </div>
@@ -264,13 +304,13 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onAuthSuccess }) => {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Phone Number</label>
+                  <label className="form-label">Indian Mobile Number (+91)</label>
                   <input
                     type="tel"
                     required
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+919876543210"
+                    placeholder="+91 98901 23456"
                     className="form-input"
                   />
                 </div>
@@ -282,20 +322,20 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onAuthSuccess }) => {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="name@example.com"
+                    placeholder="rahul.d@example.com"
                     className="form-input"
                   />
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Password</label>
+                  <label className="form-label">Password (Min 8 characters)</label>
                   <div className="input-with-icon">
                     <input
                       type={showPassword ? 'text' : 'password'}
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Min 8 characters"
+                      placeholder="Password123!"
                       className="form-input"
                     />
                     <button
@@ -309,12 +349,12 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onAuthSuccess }) => {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Delivery Address (Optional)</label>
+                  <label className="form-label">Delivery Address (Pune / Metro)</label>
                   <input
                     type="text"
                     value={homeAddress}
                     onChange={(e) => setHomeAddress(e.target.value)}
-                    placeholder="Flat / Building, Area, Pune"
+                    placeholder="Flat 402, Mayur Colony, Kothrud, Pune 411038"
                     className="form-input"
                   />
                 </div>
@@ -326,16 +366,16 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onAuthSuccess }) => {
                 <RotateCw size={16} className="spin" />
               ) : (
                 <>
-                  <span>{isLogin ? 'Continue' : 'Create Account'}</span>
+                  <span>{isLogin ? 'Sign In' : 'Register Account'}</span>
                   <ArrowRight size={16} />
                 </>
               )}
             </button>
 
-            {/* Discreet Demo Fill */}
+            {/* Autofill Demo Credentials */}
             <div className="demo-footer">
               <button type="button" onClick={handleDemoFill} className="demo-link">
-                Use Demo Account
+                Fill Seeded Test Credentials (rahul.d@example.com)
               </button>
             </div>
           </form>
@@ -345,7 +385,7 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onAuthSuccess }) => {
         {step === 'OTP' && (
           <form onSubmit={handleVerifyOtp} className="auth-form">
             <p className="otp-desc">
-              We sent a 6-digit code to <strong>{email}</strong>
+              We sent a 6-digit verification code to <strong>{email}</strong>
             </p>
 
             <div className="form-group">
@@ -385,91 +425,182 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onAuthSuccess }) => {
           </form>
         )}
 
+        {/* Trust Badges */}
+        <div className="trust-footer">
+          <ShieldCheck size={14} color="#059669" />
+          <span>NPCI UPI Protected • 256-bit Encrypted • Zero Data Sharing</span>
+        </div>
+
       </div>
 
       <style jsx>{`
         .auth-wrapper {
           min-height: 100vh;
-          background-color: #FAF7F2;
+          background: linear-gradient(135deg, #090D16 0%, #131B2E 100%);
           display: flex;
           align-items: center;
           justify-content: center;
           padding: 1.5rem;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+          font-family: 'Inter', -apple-system, sans-serif;
         }
 
         .auth-card {
           width: 100%;
-          max-width: 420px;
+          max-width: 440px;
           background: #FFFFFF;
-          border: 1px solid #E7E3DC;
-          border-radius: 20px;
-          box-shadow: 0 16px 36px -12px rgba(41, 37, 36, 0.08);
+          border: 1px solid #E2E8F0;
+          border-radius: 24px;
+          box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.25);
           padding: 2.25rem 2rem;
         }
 
         .auth-header {
           text-align: center;
-          margin-bottom: 1.75rem;
+          margin-bottom: 1.25rem;
         }
 
         .brand-badge {
-          width: 48px;
-          height: 48px;
-          background: linear-gradient(135deg, #D97706, #B45309);
-          border-radius: 14px;
+          width: 52px;
+          height: 52px;
+          background: linear-gradient(135deg, #3525CD, #4F46E5);
+          border-radius: 16px;
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 6px 14px rgba(217, 119, 6, 0.25);
-          margin-bottom: 0.85rem;
+          box-shadow: 0 8px 18px rgba(53, 37, 205, 0.35);
+          margin-bottom: 0.75rem;
         }
 
         .brand-title {
-          font-size: 1.5rem;
+          font-size: 1.6rem;
           font-weight: 800;
-          color: #292524;
+          color: #0F172A;
           margin: 0;
           letter-spacing: -0.02em;
+          font-family: 'Plus Jakarta Sans', sans-serif;
         }
 
         .brand-subtitle {
           font-size: 0.85rem;
-          color: #78716C;
-          margin-top: 0.35rem;
+          color: #64748B;
+          margin-top: 0.25rem;
+          font-weight: 500;
+        }
+
+        .location-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.35rem;
+          background: #ECFDF5;
+          color: #065F46;
+          padding: 0.25rem 0.65rem;
+          border-radius: 9999px;
+          font-size: 0.72rem;
+          font-weight: 600;
+          margin-top: 0.5rem;
+        }
+
+        .quick-demo-strip {
+          margin-bottom: 1rem;
+        }
+
+        .quick-demo-btn {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          padding: 0.75rem 1rem;
+          background: #EEF2FF;
+          color: #3525CD;
+          border: 1.5px solid #C7D2FE;
+          border-radius: 14px;
+          font-size: 0.85rem;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .quick-demo-btn:hover {
+          background: #E0E7FF;
+          border-color: #818CF8;
+          transform: translateY(-1px);
+        }
+
+        .divider {
+          display: flex;
+          align-items: center;
+          text-align: center;
+          margin: 1rem 0;
+          color: #94A3B8;
+          font-size: 0.7rem;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+        }
+
+        .divider::before, .divider::after {
+          content: '';
+          flex: 1;
+          border-bottom: 1px solid #E2E8F0;
+        }
+
+        .divider span {
+          padding: 0 0.5rem;
         }
 
         .tab-container {
           display: flex;
-          background: #F4EFEB;
+          background: #F1F5F9;
           border-radius: 12px;
           padding: 3px;
-          margin-bottom: 1.5rem;
+          margin-bottom: 1.25rem;
         }
 
         .tab-btn {
           flex: 1;
-          padding: 0.55rem;
+          border: none;
+          background: transparent;
+          padding: 0.6rem;
           font-size: 0.82rem;
           font-weight: 600;
-          color: #78716C;
-          background: transparent;
-          border: none;
-          border-radius: 9px;
+          color: #64748B;
+          border-radius: 10px;
           cursor: pointer;
           transition: all 0.2s ease;
         }
 
         .tab-btn.active {
           background: #FFFFFF;
-          color: #292524;
-          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+          color: #0F172A;
+          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+        }
+
+        .alert-box {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.65rem 0.85rem;
+          border-radius: 10px;
+          font-size: 0.8rem;
+          margin-bottom: 1rem;
+        }
+
+        .alert-box.error {
+          background: #FEF2F2;
+          color: #991B1B;
+          border: 1px solid #FEE2E2;
+        }
+
+        .alert-box.success {
+          background: #F0FDF4;
+          color: #166534;
+          border: 1px solid #DCFCE7;
         }
 
         .auth-form {
           display: flex;
           flex-direction: column;
-          gap: 1rem;
+          gap: 0.85rem;
         }
 
         .form-group {
@@ -481,25 +612,22 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onAuthSuccess }) => {
         .form-label {
           font-size: 0.78rem;
           font-weight: 600;
-          color: #57534E;
+          color: #334155;
         }
 
         .form-input {
-          width: 100%;
-          padding: 0.7rem 0.9rem;
-          font-size: 0.88rem;
-          color: #292524;
-          background: #FAF8F5;
-          border: 1px solid #E7E3DC;
-          border-radius: 11px;
+          padding: 0.65rem 0.85rem;
+          border: 1.5px solid #E2E8F0;
+          border-radius: 12px;
+          font-size: 0.875rem;
+          color: #0F172A;
           outline: none;
-          transition: border-color 0.2s, box-shadow 0.2s;
+          transition: border-color 0.2s;
         }
 
         .form-input:focus {
-          border-color: #D97706;
-          box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.12);
-          background: #FFFFFF;
+          border-color: #4F46E5;
+          box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
         }
 
         .input-with-icon {
@@ -508,49 +636,88 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onAuthSuccess }) => {
           align-items: center;
         }
 
-        .eye-btn {
-          position: absolute;
-          right: 0.85rem;
-          background: transparent;
-          border: none;
-          color: #A8A29E;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          padding: 0;
+        .input-with-icon .form-input {
+          width: 100%;
+          padding-right: 2.5rem;
         }
 
-        .eye-btn:hover {
-          color: #57534E;
+        .eye-btn {
+          position: absolute;
+          right: 0.75rem;
+          background: none;
+          border: none;
+          color: #94A3B8;
+          cursor: pointer;
         }
 
         .primary-btn {
-          margin-top: 0.5rem;
-          width: 100%;
-          padding: 0.75rem;
-          background: #D97706;
-          color: #FFFFFF;
-          border: none;
-          border-radius: 12px;
-          font-size: 0.9rem;
-          font-weight: 600;
-          cursor: pointer;
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 0.5rem;
-          transition: all 0.2s ease;
-          box-shadow: 0 4px 12px rgba(217, 119, 6, 0.2);
+          padding: 0.75rem;
+          background: #3525CD;
+          color: #FFFFFF;
+          border: none;
+          border-radius: 12px;
+          font-size: 0.875rem;
+          font-weight: 700;
+          cursor: pointer;
+          transition: opacity 0.2s;
+          margin-top: 0.35rem;
         }
 
-        .primary-btn:hover:not(:disabled) {
-          background: #B45309;
-          transform: translateY(-1px);
-          box-shadow: 0 6px 16px rgba(217, 119, 6, 0.3);
+        .primary-btn:hover {
+          opacity: 0.92;
         }
 
         .primary-btn:disabled {
           opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .otp-desc {
+          font-size: 0.85rem;
+          color: #475569;
+          text-align: center;
+          margin-bottom: 0.5rem;
+        }
+
+        .otp-input {
+          font-size: 1.75rem;
+          font-weight: 800;
+          letter-spacing: 0.5rem;
+          text-align: center;
+          padding: 0.75rem;
+          border: 2px solid #CBD5E1;
+          border-radius: 14px;
+          color: #0F172A;
+          outline: none;
+        }
+
+        .otp-input:focus {
+          border-color: #4F46E5;
+          box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+        }
+
+        .otp-actions {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: 0.5rem;
+        }
+
+        .back-btn, .resend-btn {
+          background: none;
+          border: none;
+          font-size: 0.8rem;
+          font-weight: 600;
+          color: #4F46E5;
+          cursor: pointer;
+        }
+
+        .resend-btn:disabled {
+          color: #94A3B8;
           cursor: not-allowed;
         }
 
@@ -560,103 +727,28 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onAuthSuccess }) => {
         }
 
         .demo-link {
-          background: transparent;
+          background: none;
           border: none;
-          color: #A8A29E;
+          color: #64748B;
           font-size: 0.75rem;
-          cursor: pointer;
           text-decoration: underline;
-        }
-
-        .demo-link:hover {
-          color: #D97706;
-        }
-
-        .otp-desc {
-          text-align: center;
-          font-size: 0.82rem;
-          color: #78716C;
-          margin: 0;
-        }
-
-        .otp-input {
-          width: 100%;
-          text-align: center;
-          letter-spacing: 12px;
-          font-family: monospace;
-          font-size: 1.6rem;
-          font-weight: 700;
-          color: #292524;
-          padding: 0.65rem 0.5rem;
-          background: #FAF8F5;
-          border: 1px solid #E7E3DC;
-          border-radius: 12px;
-          outline: none;
-        }
-
-        .otp-input:focus {
-          border-color: #D97706;
-          box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.12);
-          background: #FFFFFF;
-        }
-
-        .otp-actions {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          font-size: 0.8rem;
-          margin-top: 0.25rem;
-        }
-
-        .back-btn {
-          background: transparent;
-          border: none;
-          color: #78716C;
           cursor: pointer;
-          padding: 0;
         }
 
-        .back-btn:hover {
-          color: #292524;
-        }
-
-        .resend-btn {
-          background: transparent;
-          border: none;
-          color: #D97706;
-          font-weight: 600;
-          cursor: pointer;
-          padding: 0;
-        }
-
-        .resend-btn:disabled {
-          color: #A8A29E;
-          cursor: not-allowed;
-        }
-
-        .alert-box {
+        .trust-footer {
           display: flex;
           align-items: center;
-          gap: 0.5rem;
-          padding: 0.65rem 0.85rem;
-          border-radius: 10px;
-          font-size: 0.78rem;
-          margin-bottom: 1rem;
+          justify-content: center;
+          gap: 0.35rem;
+          margin-top: 1.5rem;
+          padding-top: 1rem;
+          border-top: 1px solid #F1F5F9;
+          font-size: 0.7rem;
+          color: #64748B;
+          font-weight: 500;
         }
 
-        .alert-box.error {
-          background: #FEF2F2;
-          color: #B91C1C;
-          border: 1px solid #FEE2E2;
-        }
-
-        .alert-box.success {
-          background: #ECFDF5;
-          color: #047857;
-          border: 1px solid #D1FAE5;
-        }
-
-        :global(.spin) {
+        .spin {
           animation: spin 1s linear infinite;
         }
 
