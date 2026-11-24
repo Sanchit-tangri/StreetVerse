@@ -3,6 +3,7 @@ import Head from 'next/head';
 import axios from 'axios';
 import { BuyerAuth } from '../components/auth/BuyerAuth';
 import { ProfileSettingsModal } from '../components/dashboard/ProfileSettingsModal';
+import { getTranslation } from '../utils/translations';
 
 interface MarketplaceItem {
   id: string;
@@ -186,7 +187,24 @@ export default function BuyerHome() {
   // Theme & Accent
   const [theme, setTheme] = useState<'light' | 'warm-beige' | 'sky-blue' | 'dark'>('dark');
   const [accent, setAccent] = useState<'indigo' | 'emerald' | 'amber' | 'rose'>('indigo');
-  const [currentLang, setCurrentLang] = useState('HI · भारत');
+  const [currentLang, setCurrentLang] = useState('EN · India');
+
+  // Load saved language preference
+  useEffect(() => {
+    try {
+      const savedLang = localStorage.getItem('streetverse_lang');
+      if (savedLang) setCurrentLang(savedLang);
+    } catch { }
+  }, []);
+
+  const t = (key: string, fallback?: string) => getTranslation(currentLang, key, fallback);
+
+  const handleSelectCategory = (cat: 'all' | 'dining' | 'grocery' | 'wellness' | 'turf') => {
+    setActiveFilterTab(cat);
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 320, behavior: 'smooth' });
+    }
+  };
 
   // User & Auth State (Strictly gating login first)
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -238,7 +256,7 @@ export default function BuyerHome() {
           setServerNode(res.data.node);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [API_URL]);
 
   // Apply visual theme to DOM
@@ -273,7 +291,7 @@ export default function BuyerHome() {
       if (savedUser && savedToken) {
         setCurrentUser(JSON.parse(savedUser));
       }
-    } catch {}
+    } catch { }
     setAuthChecked(true);
   }, []);
 
@@ -297,7 +315,7 @@ export default function BuyerHome() {
           const { latitude, longitude } = pos.coords;
           setUserCoords({ lat: latitude, lng: longitude });
         },
-        () => {},
+        () => { },
         { timeout: 8000 }
       );
     }
@@ -681,9 +699,8 @@ export default function BuyerHome() {
             {/* 4 Theme Dots */}
             <div className="hidden 2xl:flex items-center bg-surface-container-low p-space-2xs rounded-full gap-space-2xs">
               <button
-                className={`w-6 h-6 rounded-full flex items-center justify-center transition-transform ${
-                  theme === 'light' ? 'bg-surface shadow-[0_1px_4px_rgba(0,0,0,0.1)] scale-110' : 'hover:bg-surface-container'
-                }`}
+                className={`w-6 h-6 rounded-full flex items-center justify-center transition-transform ${theme === 'light' ? 'bg-surface shadow-[0_1px_4px_rgba(0,0,0,0.1)] scale-110' : 'hover:bg-surface-container'
+                  }`}
                 title="Light Default"
                 type="button"
                 onClick={() => setTheme('light')}
@@ -691,9 +708,8 @@ export default function BuyerHome() {
                 <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
               </button>
               <button
-                className={`w-6 h-6 rounded-full flex items-center justify-center transition-transform ${
-                  theme === 'dark' ? 'bg-surface shadow-[0_1px_4px_rgba(0,0,0,0.1)] scale-110' : 'hover:bg-surface-container'
-                }`}
+                className={`w-6 h-6 rounded-full flex items-center justify-center transition-transform ${theme === 'dark' ? 'bg-surface shadow-[0_1px_4px_rgba(0,0,0,0.1)] scale-110' : 'hover:bg-surface-container'
+                  }`}
                 title="Noir Canvas"
                 type="button"
                 onClick={() => setTheme('dark')}
@@ -701,9 +717,8 @@ export default function BuyerHome() {
                 <span className="w-2.5 h-2.5 rounded-full bg-slate-900" />
               </button>
               <button
-                className={`w-6 h-6 rounded-full flex items-center justify-center transition-transform ${
-                  theme === 'warm-beige' ? 'bg-surface shadow-[0_1px_4px_rgba(0,0,0,0.1)] scale-110' : 'hover:bg-surface-container'
-                }`}
+                className={`w-6 h-6 rounded-full flex items-center justify-center transition-transform ${theme === 'warm-beige' ? 'bg-surface shadow-[0_1px_4px_rgba(0,0,0,0.1)] scale-110' : 'hover:bg-surface-container'
+                  }`}
                 title="Warm Beige"
                 type="button"
                 onClick={() => setTheme('warm-beige')}
@@ -711,9 +726,8 @@ export default function BuyerHome() {
                 <span className="w-2.5 h-2.5 rounded-full bg-amber-700" />
               </button>
               <button
-                className={`w-6 h-6 rounded-full flex items-center justify-center transition-transform ${
-                  theme === 'sky-blue' ? 'bg-surface shadow-[0_1px_4px_rgba(0,0,0,0.1)] scale-110' : 'hover:bg-surface-container'
-                }`}
+                className={`w-6 h-6 rounded-full flex items-center justify-center transition-transform ${theme === 'sky-blue' ? 'bg-surface shadow-[0_1px_4px_rgba(0,0,0,0.1)] scale-110' : 'hover:bg-surface-container'
+                  }`}
                 title="Sky Blue"
                 type="button"
                 onClick={() => setTheme('sky-blue')}
@@ -837,11 +851,10 @@ export default function BuyerHome() {
         {/* Secondary Sub-navigation */}
         <nav className="hidden lg:flex items-center gap-space-sm max-w-7xl mx-auto px-margin-mobile lg:px-margin pb-space-xs">
           <button
-            className={`px-space-sm py-space-2xs transition-colors rounded-lg font-label-md text-label-md ${
-              activeFilterTab === 'all'
-                ? 'bg-primary-container text-on-primary font-bold'
-                : 'text-on-surface-variant hover:text-on-surface'
-            }`}
+            className={`px-space-sm py-space-2xs transition-colors rounded-lg font-label-md text-label-md ${activeFilterTab === 'all'
+              ? 'bg-primary-container text-on-primary font-bold'
+              : 'text-on-surface-variant hover:text-on-surface'
+              }`}
             onClick={() => setActiveFilterTab('all')}
           >
             Explore All India Hubs
@@ -905,7 +918,7 @@ export default function BuyerHome() {
                   </span>
                 </div>
                 <div className="flex items-center gap-space-xs">
-                  <button 
+                  <button
                     onClick={() => { setSearchQuery('biryani'); handleSearchSubmit('biryani'); }}
                     className="text-primary hover:text-primary-container font-semibold underline text-[11px] cursor-pointer flex items-center gap-1"
                     type="button"
@@ -925,11 +938,10 @@ export default function BuyerHome() {
                     </span>
                     <div className="flex items-center gap-space-2xs bg-surface-container-highest p-space-2xs rounded-full">
                       <button
-                        className={`theme-pill px-space-xs py-space-2xs rounded-full font-label-sm text-label-sm transition-all duration-200 flex items-center gap-1 stitch-pill ${
-                          theme === 'light'
-                            ? 'bg-surface-container-lowest text-on-surface shadow-xs ring-2 ring-primary/40 font-bold'
-                            : 'text-on-surface-variant hover:text-on-surface'
-                        }`}
+                        className={`theme-pill px-space-xs py-space-2xs rounded-full font-label-sm text-label-sm transition-all duration-200 flex items-center gap-1 stitch-pill ${theme === 'light'
+                          ? 'bg-surface-container-lowest text-on-surface shadow-xs ring-2 ring-primary/40 font-bold'
+                          : 'text-on-surface-variant hover:text-on-surface'
+                          }`}
                         onClick={() => setTheme('light')}
                         title="Light Mode"
                         type="button"
@@ -938,11 +950,10 @@ export default function BuyerHome() {
                         <span>Default</span>
                       </button>
                       <button
-                        className={`theme-pill px-space-xs py-space-2xs rounded-full font-label-sm text-label-sm transition-all duration-200 flex items-center gap-1 stitch-pill ${
-                          theme === 'warm-beige'
-                            ? 'bg-surface-container-lowest text-on-surface shadow-xs ring-2 ring-primary/40 font-bold'
-                            : 'text-on-surface-variant hover:text-on-surface'
-                        }`}
+                        className={`theme-pill px-space-xs py-space-2xs rounded-full font-label-sm text-label-sm transition-all duration-200 flex items-center gap-1 stitch-pill ${theme === 'warm-beige'
+                          ? 'bg-surface-container-lowest text-on-surface shadow-xs ring-2 ring-primary/40 font-bold'
+                          : 'text-on-surface-variant hover:text-on-surface'
+                          }`}
                         onClick={() => setTheme('warm-beige')}
                         title="Warm Beige"
                         type="button"
@@ -951,11 +962,10 @@ export default function BuyerHome() {
                         <span>Beige</span>
                       </button>
                       <button
-                        className={`theme-pill px-space-xs py-space-2xs rounded-full font-label-sm text-label-sm transition-all duration-200 flex items-center gap-1 stitch-pill ${
-                          theme === 'sky-blue'
-                            ? 'bg-surface-container-lowest text-on-surface shadow-xs ring-2 ring-primary/40 font-bold'
-                            : 'text-on-surface-variant hover:text-on-surface'
-                        }`}
+                        className={`theme-pill px-space-xs py-space-2xs rounded-full font-label-sm text-label-sm transition-all duration-200 flex items-center gap-1 stitch-pill ${theme === 'sky-blue'
+                          ? 'bg-surface-container-lowest text-on-surface shadow-xs ring-2 ring-primary/40 font-bold'
+                          : 'text-on-surface-variant hover:text-on-surface'
+                          }`}
                         onClick={() => setTheme('sky-blue')}
                         title="Soft Blue"
                         type="button"
@@ -964,11 +974,10 @@ export default function BuyerHome() {
                         <span>Sky</span>
                       </button>
                       <button
-                        className={`theme-pill px-space-xs py-space-2xs rounded-full font-label-sm text-label-sm transition-all duration-200 flex items-center gap-1 stitch-pill ${
-                          theme === 'dark'
-                            ? 'bg-surface-container-lowest text-on-surface shadow-xs ring-2 ring-primary/40 font-bold'
-                            : 'text-on-surface-variant hover:text-on-surface'
-                        }`}
+                        className={`theme-pill px-space-xs py-space-2xs rounded-full font-label-sm text-label-sm transition-all duration-200 flex items-center gap-1 stitch-pill ${theme === 'dark'
+                          ? 'bg-surface-container-lowest text-on-surface shadow-xs ring-2 ring-primary/40 font-bold'
+                          : 'text-on-surface-variant hover:text-on-surface'
+                          }`}
                         onClick={() => setTheme('dark')}
                         title="Dark Canvas"
                         type="button"
@@ -984,9 +993,8 @@ export default function BuyerHome() {
                     <span className="font-label-sm text-label-sm text-outline">Accent:</span>
                     <div className="flex items-center gap-1.5">
                       <button
-                        className={`accent-swatch w-4 h-4 rounded-full bg-primary-container transition-all duration-200 ${
-                          accent === 'indigo' ? 'ring-2 ring-primary ring-offset-2 scale-125' : 'hover:scale-125'
-                        }`}
+                        className={`accent-swatch w-4 h-4 rounded-full bg-primary-container transition-all duration-200 ${accent === 'indigo' ? 'ring-2 ring-primary ring-offset-2 scale-125' : 'hover:scale-125'
+                          }`}
                         onClick={() => {
                           setAccent('indigo');
                           searchInputRef.current?.focus();
@@ -995,9 +1003,8 @@ export default function BuyerHome() {
                         type="button"
                       />
                       <button
-                        className={`accent-swatch w-4 h-4 rounded-full bg-secondary transition-all duration-200 ${
-                          accent === 'emerald' ? 'ring-2 ring-secondary ring-offset-2 scale-125' : 'hover:scale-125'
-                        }`}
+                        className={`accent-swatch w-4 h-4 rounded-full bg-secondary transition-all duration-200 ${accent === 'emerald' ? 'ring-2 ring-secondary ring-offset-2 scale-125' : 'hover:scale-125'
+                          }`}
                         onClick={() => {
                           setAccent('emerald');
                           searchInputRef.current?.focus();
@@ -1006,9 +1013,8 @@ export default function BuyerHome() {
                         type="button"
                       />
                       <button
-                        className={`accent-swatch w-4 h-4 rounded-full bg-tertiary-container transition-all duration-200 ${
-                          accent === 'amber' ? 'ring-2 ring-tertiary-container ring-offset-2 scale-125' : 'hover:scale-125'
-                        }`}
+                        className={`accent-swatch w-4 h-4 rounded-full bg-tertiary-container transition-all duration-200 ${accent === 'amber' ? 'ring-2 ring-tertiary-container ring-offset-2 scale-125' : 'hover:scale-125'
+                          }`}
                         onClick={() => {
                           setAccent('amber');
                           searchInputRef.current?.focus();
@@ -1017,9 +1023,8 @@ export default function BuyerHome() {
                         type="button"
                       />
                       <button
-                        className={`accent-swatch w-4 h-4 rounded-full bg-error transition-all duration-200 ${
-                          accent === 'rose' ? 'ring-2 ring-error ring-offset-2 scale-125' : 'hover:scale-125'
-                        }`}
+                        className={`accent-swatch w-4 h-4 rounded-full bg-error transition-all duration-200 ${accent === 'rose' ? 'ring-2 ring-error ring-offset-2 scale-125' : 'hover:scale-125'
+                          }`}
                         onClick={() => {
                           setAccent('rose');
                           searchInputRef.current?.focus();
@@ -1077,9 +1082,8 @@ export default function BuyerHome() {
                     }}
                   />
                   <button
-                    className={`p-space-xs rounded-full transition-colors ${
-                      isVoiceActive ? 'text-error animate-pulse bg-error-container/30' : 'text-outline hover:text-primary hover:bg-surface'
-                    }`}
+                    className={`p-space-xs rounded-full transition-colors ${isVoiceActive ? 'text-error animate-pulse bg-error-container/30' : 'text-outline hover:text-primary hover:bg-surface'
+                      }`}
                     onClick={triggerVoiceSearch}
                     title="Voice Search"
                     type="button"
@@ -1419,11 +1423,10 @@ export default function BuyerHome() {
                   ].map((tab) => (
                     <button
                       key={tab.id}
-                      className={`deal-tab-btn px-space-md py-space-xs rounded-lg font-label-md text-label-md transition-all ${
-                        activeFilterTab === tab.id
-                          ? 'bg-surface-container-lowest text-primary shadow-xs font-bold'
-                          : 'text-on-surface-variant hover:text-on-surface font-semibold'
-                      }`}
+                      className={`deal-tab-btn px-space-md py-space-xs rounded-lg font-label-md text-label-md transition-all ${activeFilterTab === tab.id
+                        ? 'bg-surface-container-lowest text-primary shadow-xs font-bold'
+                        : 'text-on-surface-variant hover:text-on-surface font-semibold'
+                        }`}
                       onClick={() => setActiveFilterTab(tab.id as any)}
                       type="button"
                     >
@@ -1511,11 +1514,10 @@ export default function BuyerHome() {
                         </button>
                       ) : (
                         <button
-                          className={`w-full py-space-xs px-space-md rounded-xl font-label-md text-label-md font-semibold active:scale-95 transition-all flex items-center justify-center gap-1 shadow-xs stitch-btn ${
-                            card.category === 'grocery'
-                              ? 'bg-secondary text-on-secondary hover:opacity-90'
-                              : 'bg-primary text-on-primary hover:opacity-90'
-                          }`}
+                          className={`w-full py-space-xs px-space-md rounded-xl font-label-md text-label-md font-semibold active:scale-95 transition-all flex items-center justify-center gap-1 shadow-xs stitch-btn ${card.category === 'grocery'
+                            ? 'bg-secondary text-on-secondary hover:opacity-90'
+                            : 'bg-primary text-on-primary hover:opacity-90'
+                            }`}
                           onClick={() => addToTray(card)}
                           type="button"
                         >
@@ -1598,11 +1600,10 @@ export default function BuyerHome() {
                   {['05:00 PM', '06:30 PM (Fav)', '08:00 PM', '09:15 PM', '10:30 PM'].map((time) => (
                     <button
                       key={time}
-                      className={`slot-pill px-space-sm py-space-xs rounded-xl font-label-md text-label-md font-semibold transition-all ${
-                        selectedSlotTime === time
-                          ? 'bg-primary-container text-on-primary shadow-xs'
-                          : 'bg-surface-container hover:bg-primary-container hover:text-on-primary text-on-surface'
-                      }`}
+                      className={`slot-pill px-space-sm py-space-xs rounded-xl font-label-md text-label-md font-semibold transition-all ${selectedSlotTime === time
+                        ? 'bg-primary-container text-on-primary shadow-xs'
+                        : 'bg-surface-container hover:bg-primary-container hover:text-on-primary text-on-surface'
+                        }`}
                       onClick={() => setSelectedSlotTime(time)}
                       type="button"
                     >
