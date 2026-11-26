@@ -1,21 +1,64 @@
-import path from 'path';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import Redis from 'ioredis';
-import dotenv from 'dotenv';
 
-dotenv.config({ path: path.resolve(process.cwd(), 'services', 'api-gateway', '.env') });
-dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env') });
-dotenv.config();
+let configuredRedisUrl: string | undefined;
+let redisClientInstance: Redis | null = null;
 
-// Standard Redis client for OTP storage with silent error handler
-export const redisClient = new Redis(process.env.REDIS_URL || 'redis://localhost:6380', {
-  lazyConnect: true,
-  retryStrategy: (times) => Math.min(times * 100, 3000)
-});
-redisClient.on('error', () => {
-  // Suppress unhandled redis connection errors when Docker is offline
-});
+/**
+ * Configures the Redis URL used by OTP storage before lazy client creation.
+ */
+export function configureEmailRedis(redisUrl: string): void {
+  if (redisClientInstance && configuredRedisUrl !== redisUrl) {
+    redisClientInstance.disconnect();
+    redisClientInstance = null;
+  }
+  configuredRedisUrl = redisUrl;
+}
+
+/**
+ * Returns the lazily initialized Redis client so importing email.ts has no
+ * top-level Redis or dotenv side effects.
+ */
+export function getRedisClient(): Redis {
+  if (!redisClientInstance) {
+    const url = configuredRedisUrl || process.env.REDIS_URL || 'redis://localhost:6380';
+    redisClientInstance = new Redis(url, {
+      lazyConnect: true,
+      enableOfflineQueue: false,
+      maxRetriesPerRequest: 1,
+      connectTimeout: 500,
+      retryStrategy: (times) => Math.min(times * 100, 3000)
+    });
+    redisClientInstance.on('error', () => {
+      // Suppress unhandled redis connection errors when Docker is offline
+    });
+  }
+  return redisClientInstance;
+}
+
+async function getReadyRedisClient(): Promise<Redis | null> {
+  const client = getRedisClient();
+  if (client.status === 'ready') {
+    return client;
+  }
+  if (client.status === 'wait') {
+    try {
+      await client.connect();
+      return client;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+export function disconnectEmailRedis(): void {
+  if (redisClientInstance) {
+    redisClientInstance.disconnect();
+    redisClientInstance = null;
+  }
+}
 
 // In-Memory Fallback for OTPs when Redis/Docker is offline
 const memoryOtpMap = new Map<string, { otp: string; attempts: number; expiresAt: number }>();
@@ -79,9 +122,12 @@ export async function storeOtp(
   });
 
   try {
-    await redisClient.set(key, otp, 'EX', OTP_TTL_SECONDS);
-    await redisClient.set(attemptsKey, '0', 'EX', OTP_TTL_SECONDS);
-  } catch {}
+    const client = await getReadyRedisClient();
+    if (client) {
+      await client.set(key, otp, 'EX', OTP_TTL_SECONDS);
+      await client.set(attemptsKey, '0', 'EX', OTP_TTL_SECONDS);
+    }
+  } catch { }
 }
 
 /**
@@ -113,9 +159,12 @@ export async function verifyOtp(
   let attempts = 0;
 
   try {
-    storedOtp = await redisClient.get(key);
-    attempts = parseInt((await redisClient.get(attemptsKey)) || '0', 10);
-  } catch {}
+    const client = await getReadyRedisClient();
+    if (client) {
+      storedOtp = await client.get(key);
+      attempts = parseInt((await client.get(attemptsKey)) || '0', 10);
+    }
+  } catch { }
 
   // Fallback to memory store if Redis is unavailable or expired in Redis
   if (!storedOtp) {
@@ -132,17 +181,23 @@ export async function verifyOtp(
 
   if (attempts >= MAX_ATTEMPTS) {
     try {
-      await redisClient.del(key);
-      await redisClient.del(attemptsKey);
-    } catch {}
+      const client = await getReadyRedisClient();
+      if (client) {
+        await client.del(key);
+        await client.del(attemptsKey);
+      }
+    } catch { }
     memoryOtpMap.delete(key);
     return { valid: false, reason: 'Too many incorrect attempts. Please request a new OTP.' };
   }
 
   if (storedOtp !== candidateOtp.trim()) {
     try {
-      await redisClient.incr(attemptsKey);
-    } catch {}
+      const client = await getReadyRedisClient();
+      if (client) {
+        await client.incr(attemptsKey);
+      }
+    } catch { }
     const mem = memoryOtpMap.get(key);
     if (mem) mem.attempts += 1;
 
@@ -151,9 +206,12 @@ export async function verifyOtp(
 
   // Valid OTP -> delete to prevent reuse
   try {
-    await redisClient.del(key);
-    await redisClient.del(attemptsKey);
-  } catch {}
+    const client = await getReadyRedisClient();
+    if (client) {
+      await client.del(key);
+      await client.del(attemptsKey);
+    }
+  } catch { }
   memoryOtpMap.delete(key);
 
   return { valid: true };

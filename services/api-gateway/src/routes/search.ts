@@ -1,11 +1,11 @@
 import { Router, Request, Response } from 'express';
 import axios from 'axios';
 
-export function createSearchRouter(merchantPool?: any): Router {
+export function createSearchRouter(merchantPool?: any, aiEngineUrl?: string): Router {
   const router = Router();
   
   // The AI Engine runs on port 8000 by default
-  const AI_ENGINE_URL = process.env.AI_ENGINE_URL || 'http://localhost:8000';
+  const AI_ENGINE_URL = aiEngineUrl || process.env.AI_ENGINE_URL || 'http://localhost:8000';
 
   const handleSearch = async (
     query: string,

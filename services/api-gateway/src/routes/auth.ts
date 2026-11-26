@@ -2,11 +2,31 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import pg from 'pg';
+import { GatewayConfig } from '../config/env';
 import { generateOtp, storeOtp, verifyOtp, sendOtpEmail } from '../services/email';
 
-export function createAuthRouter(customerPool: pg.Pool, merchantPool: pg.Pool): Router {
+export type JwtAuthConfig = Pick<
+  GatewayConfig,
+  'jwtSecret' | 'jwtIssuer' | 'jwtBuyerAudience' | 'jwtSellerAudience' | 'jwtExpiresIn'
+>;
+
+function isRoleAudienceConsistent(
+  role: unknown,
+  aud: unknown,
+  config: JwtAuthConfig
+): boolean {
+  if (typeof aud !== 'string') return false;
+  if (role === 'BUYER') return aud === config.jwtBuyerAudience;
+  if (role === 'SELLER') return aud === config.jwtSellerAudience;
+  return false;
+}
+
+export function createAuthRouter(
+  customerPool: pg.Pool,
+  merchantPool: pg.Pool,
+  jwtConfig: JwtAuthConfig
+): Router {
   const router = Router();
-  const JWT_SECRET = process.env.JWT_SECRET || 'streetverse-secure-jwt-capstone-token-secret-2026';
   const BCRYPT_SALT_ROUNDS = 10;
 
   // Validation helpers
@@ -198,8 +218,12 @@ export function createAuthRouter(customerPool: pg.Pool, merchantPool: pg.Pool): 
           fullName: user.full_name,
           email: user.email
         },
-        JWT_SECRET,
-        { expiresIn: '7d' }
+        jwtConfig.jwtSecret,
+        {
+          issuer: jwtConfig.jwtIssuer,
+          audience: jwtConfig.jwtBuyerAudience,
+          expiresIn: jwtConfig.jwtExpiresIn as jwt.SignOptions['expiresIn']
+        }
       );
 
       return res.status(200).json({
@@ -413,8 +437,12 @@ export function createAuthRouter(customerPool: pg.Pool, merchantPool: pg.Pool): 
           ownerPhone: merchant.owner_phone,
           ownerEmail: merchant.owner_email
         },
-        JWT_SECRET,
-        { expiresIn: '7d' }
+        jwtConfig.jwtSecret,
+        {
+          issuer: jwtConfig.jwtIssuer,
+          audience: jwtConfig.jwtSellerAudience,
+          expiresIn: jwtConfig.jwtExpiresIn as jwt.SignOptions['expiresIn']
+        }
       );
 
       return res.status(200).json({
@@ -515,10 +543,22 @@ export function createAuthRouter(customerPool: pg.Pool, merchantPool: pg.Pool): 
 
     const token = authHeader.substring(7);
     try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      return res.status(200).json({ authenticated: true, user: decoded });
-    } catch (err: any) {
-      return res.status(401).json({ error: 'Authentication token is invalid or expired.', details: err.message });
+      const decoded = jwt.verify(token, jwtConfig.jwtSecret, {
+        issuer: jwtConfig.jwtIssuer,
+        audience: [jwtConfig.jwtBuyerAudience, jwtConfig.jwtSellerAudience]
+      }) as jwt.JwtPayload;
+
+      if (!isRoleAudienceConsistent(decoded.role, decoded.aud, jwtConfig)) {
+        return res.status(401).json({ error: 'Authentication token role and audience mismatch.' });
+      }
+
+      return res.status(200).json({
+        authenticated: true,
+        audience: decoded.aud,
+        user: decoded
+      });
+    } catch {
+      return res.status(401).json({ error: 'Authentication token is invalid or expired.' });
     }
   });
 
