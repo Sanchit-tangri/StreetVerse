@@ -2,24 +2,17 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import pg from 'pg';
-import { GatewayConfig } from '../config/env';
-import { generateOtp, storeOtp, verifyOtp, sendOtpEmail } from '../services/email';
-
-export type JwtAuthConfig = Pick<
-  GatewayConfig,
-  'jwtSecret' | 'jwtIssuer' | 'jwtBuyerAudience' | 'jwtSellerAudience' | 'jwtExpiresIn'
->;
-
-function isRoleAudienceConsistent(
-  role: unknown,
-  aud: unknown,
-  config: JwtAuthConfig
-): boolean {
-  if (typeof aud !== 'string') return false;
-  if (role === 'BUYER') return aud === config.jwtBuyerAudience;
-  if (role === 'SELLER') return aud === config.jwtSellerAudience;
-  return false;
-}
+import { JwtAuthConfig, verifyAccessToken } from '../middleware/authJwt';
+import {
+  acquireResendCooldown,
+  clearResendCooldown,
+  generateOtp,
+  invalidateOtp,
+  sendOtpEmail,
+  storeOtp,
+  verifyOtp
+} from '../services/email';
+import { normalizePhoneNumber } from '../utils/phone';
 
 export function createAuthRouter(
   customerPool: pg.Pool,
@@ -29,14 +22,8 @@ export function createAuthRouter(
   const router = Router();
   const BCRYPT_SALT_ROUNDS = 10;
 
-  // Validation helpers
   const isValidEmail = (email: string): boolean => {
     return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email.trim());
-  };
-
-  const isValidPhone = (phone: string): boolean => {
-    // Allows optional + and 10 to 15 digits
-    return /^\+?[0-9]{10,15}$/.test(phone.trim());
   };
 
   const isValidPassword = (password: string): boolean => {
@@ -59,8 +46,9 @@ export function createAuthRouter(
         return res.status(400).json({ error: 'Missing required fields (phone, full_name, email, password).' });
       }
 
-      if (!isValidPhone(phone)) {
-        return res.status(400).json({ error: 'Invalid phone number format. Must be 10-15 digits.' });
+      const phoneNorm = normalizePhoneNumber(String(phone));
+      if (!phoneNorm.valid || !phoneNorm.e164 || !phoneNorm.legacyCandidates) {
+        return res.status(400).json({ error: phoneNorm.error || 'Invalid phone number format.' });
       }
 
       if (!isValidEmail(email)) {
@@ -71,17 +59,18 @@ export function createAuthRouter(
         return res.status(400).json({ error: 'Password must be at least 8 characters long and contain both letters and numbers.' });
       }
 
-      const normalizedPhone = phone.trim();
+      const normalizedPhone = phoneNorm.e164;
+      const phoneCandidates = phoneNorm.legacyCandidates;
       const normalizedEmail = email.trim().toLowerCase();
       const trimmedName = full_name.trim();
 
-      // Check for existing user strictly with parameterized query
-      const existingUserQuery = 'SELECT id, phone, email FROM users WHERE phone = $1 OR email = $2';
-      const existingRes = await customerPool.query(existingUserQuery, [normalizedPhone, normalizedEmail]);
+      // Check existing canonical and legacy phone representations + case-insensitive email
+      const existingUserQuery = 'SELECT id, phone, email FROM users WHERE phone = ANY($1) OR LOWER(email) = $2';
+      const existingRes = await customerPool.query(existingUserQuery, [phoneCandidates, normalizedEmail]);
 
       if (existingRes.rows.length > 0) {
         const match = existingRes.rows[0];
-        if (match.phone === normalizedPhone) {
+        if (phoneCandidates.includes(match.phone)) {
           return res.status(409).json({ error: 'A customer account with this phone number already exists.' });
         }
         return res.status(409).json({ error: 'A customer account with this email address already exists.' });
@@ -90,7 +79,7 @@ export function createAuthRouter(
       // Hash password securely
       const passwordHash = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
 
-      // Insert new buyer
+      // Insert new buyer with canonical E.164 phone
       const insertQuery = `
         INSERT INTO users (phone, full_name, email, password_hash, home_address, is_verified)
         VALUES ($1, $2, $3, $4, $5, false)
@@ -109,7 +98,13 @@ export function createAuthRouter(
       // Generate & send OTP
       const otp = generateOtp();
       await storeOtp('buyer', normalizedEmail, otp);
-      await sendOtpEmail(normalizedEmail, otp, 'Buyer Registration');
+      const emailResult = await sendOtpEmail(normalizedEmail, otp, 'Buyer Registration');
+      if (!emailResult.sent) {
+        await invalidateOtp('buyer', normalizedEmail);
+        return res.status(502).json({
+          error: 'Account created, but failed to deliver verification email. Please try resending the code.'
+        });
+      }
 
       return res.status(201).json({
         message: 'Registration successful. A 6-digit verification code has been sent to your email.',
@@ -118,6 +113,9 @@ export function createAuthRouter(
         requiresOtp: true
       });
     } catch (error: any) {
+      if (error?.code === '23505') {
+        return res.status(409).json({ error: 'A customer account with these details already exists.' });
+      }
       console.error('[Auth Error - Buyer Register]:', error);
       return res.status(500).json({ error: 'An internal error occurred during registration. Please try again.' });
     }
@@ -134,15 +132,34 @@ export function createAuthRouter(
         return res.status(400).json({ error: 'Identifier (phone or email) and password are required.' });
       }
 
-      const normalizedIdentifier = identifier.trim().toLowerCase();
+      const rawIdent = String(identifier).trim();
+      let result;
 
-      // Parameterized query: find user by phone or email
-      const findUserQuery = `
-        SELECT id, phone, full_name, email, password_hash, is_verified, home_address 
-        FROM users 
-        WHERE LOWER(email) = $1 OR phone = $1
-      `;
-      const result = await customerPool.query(findUserQuery, [normalizedIdentifier]);
+      if (rawIdent.includes('@')) {
+        const normalizedEmail = rawIdent.toLowerCase();
+        result = await customerPool.query(
+          `SELECT id, phone, full_name, email, password_hash, is_verified, home_address
+           FROM users
+           WHERE LOWER(email) = $1`,
+          [normalizedEmail]
+        );
+      } else {
+        const phoneNorm = normalizePhoneNumber(rawIdent);
+        if (!phoneNorm.valid || !phoneNorm.legacyCandidates) {
+          return res.status(401).json({ error: 'Invalid credentials. Please check your phone/email and password.' });
+        }
+        result = await customerPool.query(
+          `SELECT id, phone, full_name, email, password_hash, is_verified, home_address
+           FROM users
+           WHERE phone = ANY($1)`,
+          [phoneNorm.legacyCandidates]
+        );
+        if (result.rows.length > 1) {
+          return res.status(409).json({
+            error: 'Multiple accounts match this phone number format. Account reconciliation is required before sign in.'
+          });
+        }
+      }
 
       if (result.rows.length === 0) {
         return res.status(401).json({ error: 'Invalid credentials. Please check your phone/email and password.' });
@@ -160,10 +177,30 @@ export function createAuthRouter(
         return res.status(401).json({ error: 'Invalid credentials. Please check your phone/email and password.' });
       }
 
+      // Enforce 45-second account-level login OTP cooldown after password verification
+      const cooldown = await acquireResendCooldown('buyer-login', user.id);
+      if (!cooldown.allowed) {
+        return res.status(429).json({
+          error: `Please wait ${cooldown.retryAfterSeconds} seconds before requesting another login OTP.`,
+          retryAfterSeconds: cooldown.retryAfterSeconds
+        });
+      }
+
       // Generate and store OTP in Redis
       const otp = generateOtp();
-      await storeOtp('buyer', user.email, otp);
-      await sendOtpEmail(user.email, otp, 'Buyer Login');
+      try {
+        await storeOtp('buyer', user.email, otp);
+        const emailResult = await sendOtpEmail(user.email, otp, 'Buyer Login');
+        if (!emailResult.sent) {
+          await invalidateOtp('buyer', user.email);
+          await clearResendCooldown('buyer-login', user.id);
+          return res.status(502).json({ error: 'Failed to deliver verification OTP email.' });
+        }
+      } catch (deliveryErr) {
+        await invalidateOtp('buyer', user.email);
+        await clearResendCooldown('buyer-login', user.id);
+        throw deliveryErr;
+      }
 
       return res.status(200).json({
         message: 'Credentials verified. A 6-digit verification OTP has been sent to your registered email.',
@@ -269,8 +306,9 @@ export function createAuthRouter(
         return res.status(400).json({ error: 'Missing required merchant registration fields.' });
       }
 
-      if (!isValidPhone(owner_phone)) {
-        return res.status(400).json({ error: 'Invalid owner phone number format.' });
+      const phoneNorm = normalizePhoneNumber(String(owner_phone));
+      if (!phoneNorm.valid || !phoneNorm.e164 || !phoneNorm.legacyCandidates) {
+        return res.status(400).json({ error: phoneNorm.error || 'Invalid owner phone number format.' });
       }
 
       if (!isValidEmail(owner_email)) {
@@ -281,18 +319,19 @@ export function createAuthRouter(
         return res.status(400).json({ error: 'Password must be at least 8 characters long with letters and numbers.' });
       }
 
-      const normalizedPhone = owner_phone.trim();
+      const normalizedPhone = phoneNorm.e164;
+      const phoneCandidates = phoneNorm.legacyCandidates;
       const normalizedEmail = owner_email.trim().toLowerCase();
 
-      // Check existing merchant strictly with parameterized queries
+      // Check existing canonical/legacy merchant phone representations + case-insensitive email
       const existingRes = await merchantPool.query(
-        'SELECT id, owner_phone, owner_email FROM merchants WHERE owner_phone = $1 OR owner_email = $2',
-        [normalizedPhone, normalizedEmail]
+        'SELECT id, owner_phone, owner_email FROM merchants WHERE owner_phone = ANY($1) OR LOWER(owner_email) = $2',
+        [phoneCandidates, normalizedEmail]
       );
 
       if (existingRes.rows.length > 0) {
         const match = existingRes.rows[0];
-        if (match.owner_phone === normalizedPhone) {
+        if (phoneCandidates.includes(match.owner_phone)) {
           return res.status(409).json({ error: 'A merchant account with this phone number already exists.' });
         }
         return res.status(409).json({ error: 'A merchant account with this email address already exists.' });
@@ -325,7 +364,13 @@ export function createAuthRouter(
       // Generate & send OTP
       const otp = generateOtp();
       await storeOtp('seller', normalizedEmail, otp);
-      await sendOtpEmail(normalizedEmail, otp, 'Merchant Registration');
+      const emailResult = await sendOtpEmail(normalizedEmail, otp, 'Merchant Registration');
+      if (!emailResult.sent) {
+        await invalidateOtp('seller', normalizedEmail);
+        return res.status(502).json({
+          error: 'Merchant registered, but failed to deliver verification email. Please try resending the code.'
+        });
+      }
 
       return res.status(201).json({
         message: 'Merchant registered successfully. Verification OTP sent to owner email.',
@@ -334,6 +379,9 @@ export function createAuthRouter(
         requiresOtp: true
       });
     } catch (error: any) {
+      if (error?.code === '23505') {
+        return res.status(409).json({ error: 'A merchant account with these details already exists.' });
+      }
       console.error('[Auth Error - Seller Register]:', error);
       return res.status(500).json({ error: 'Failed to complete merchant registration.' });
     }
@@ -350,15 +398,34 @@ export function createAuthRouter(
         return res.status(400).json({ error: 'Merchant phone/email and password are required.' });
       }
 
-      const normalizedIdentifier = identifier.trim().toLowerCase();
+      const rawIdent = String(identifier).trim();
+      let result;
 
-      // Parameterized query
-      const findMerchantQuery = `
-        SELECT id, business_name, category, owner_phone, owner_email, password_hash, upi_vpa, address, is_open
-        FROM merchants
-        WHERE LOWER(owner_email) = $1 OR owner_phone = $1
-      `;
-      const result = await merchantPool.query(findMerchantQuery, [normalizedIdentifier]);
+      if (rawIdent.includes('@')) {
+        const normalizedEmail = rawIdent.toLowerCase();
+        result = await merchantPool.query(
+          `SELECT id, business_name, category, owner_phone, owner_email, password_hash, upi_vpa, address, is_open
+           FROM merchants
+           WHERE LOWER(owner_email) = $1`,
+          [normalizedEmail]
+        );
+      } else {
+        const phoneNorm = normalizePhoneNumber(rawIdent);
+        if (!phoneNorm.valid || !phoneNorm.legacyCandidates) {
+          return res.status(401).json({ error: 'Invalid merchant credentials.' });
+        }
+        result = await merchantPool.query(
+          `SELECT id, business_name, category, owner_phone, owner_email, password_hash, upi_vpa, address, is_open
+           FROM merchants
+           WHERE owner_phone = ANY($1)`,
+          [phoneNorm.legacyCandidates]
+        );
+        if (result.rows.length > 1) {
+          return res.status(409).json({
+            error: 'Multiple merchant accounts match this phone number format. Account reconciliation is required before sign in.'
+          });
+        }
+      }
 
       if (result.rows.length === 0) {
         return res.status(401).json({ error: 'Invalid merchant credentials.' });
@@ -375,11 +442,31 @@ export function createAuthRouter(
         return res.status(401).json({ error: 'Invalid merchant credentials.' });
       }
 
-      // Generate & send OTP
+      // Enforce 45-second account-level login OTP cooldown after password verification
       const email = merchant.owner_email || `${merchant.owner_phone}@streetverse.local`;
+      const cooldown = await acquireResendCooldown('seller-login', merchant.id);
+      if (!cooldown.allowed) {
+        return res.status(429).json({
+          error: `Please wait ${cooldown.retryAfterSeconds} seconds before requesting another login OTP.`,
+          retryAfterSeconds: cooldown.retryAfterSeconds
+        });
+      }
+
+      // Generate and store OTP
       const otp = generateOtp();
-      await storeOtp('seller', email, otp);
-      await sendOtpEmail(email, otp, 'Merchant Login');
+      try {
+        await storeOtp('seller', email, otp);
+        const emailResult = await sendOtpEmail(email, otp, 'Merchant Login');
+        if (!emailResult.sent) {
+          await invalidateOtp('seller', email);
+          await clearResendCooldown('seller-login', merchant.id);
+          return res.status(502).json({ error: 'Failed to deliver merchant verification OTP email.' });
+        }
+      } catch (deliveryErr) {
+        await invalidateOtp('seller', email);
+        await clearResendCooldown('seller-login', merchant.id);
+        throw deliveryErr;
+      }
 
       return res.status(200).json({
         message: 'Credentials verified. 6-digit OTP sent to merchant registered email.',
@@ -508,19 +595,51 @@ export function createAuthRouter(
   // =========================================================================
 
   /**
-   * Resend OTP endpoint
+   * Resend OTP endpoint (strictly limited to buyer/seller scopes with 45s cooldown)
    */
   router.post('/resend-otp', async (req: Request, res: Response) => {
     try {
       const { scope, email } = req.body;
-      if (!scope || !email || (scope !== 'buyer' && scope !== 'seller')) {
-        return res.status(400).json({ error: 'Invalid scope (buyer/seller) or email.' });
+      if (scope !== 'buyer' && scope !== 'seller') {
+        return res.status(400).json({ error: 'Invalid scope. Only buyer and seller scopes are allowed.' });
+      }
+      if (typeof email !== 'string' || !isValidEmail(email)) {
+        return res.status(400).json({ error: 'Valid email address is required.' });
       }
 
       const normalizedEmail = email.trim().toLowerCase();
+
+      // Verify target account exists for the requested portal before dispatching OTP
+      const accountRes =
+        scope === 'buyer'
+          ? await customerPool.query('SELECT id FROM users WHERE LOWER(email) = $1', [normalizedEmail])
+          : await merchantPool.query('SELECT id FROM merchants WHERE LOWER(owner_email) = $1', [normalizedEmail]);
+
+      if (accountRes.rows.length === 0) {
+        return res.status(404).json({ error: 'Account not found for OTP resend.' });
+      }
+
+      const cooldown = await acquireResendCooldown(`resend:${scope}`, normalizedEmail);
+      if (!cooldown.allowed) {
+        return res.status(429).json({
+          error: `Please wait ${cooldown.retryAfterSeconds} seconds before requesting another OTP.`,
+          retryAfterSeconds: cooldown.retryAfterSeconds
+        });
+      }
+
       const otp = generateOtp();
       await storeOtp(scope, normalizedEmail, otp);
-      await sendOtpEmail(normalizedEmail, otp, scope === 'buyer' ? 'Buyer Portal' : 'Merchant Portal');
+      const emailResult = await sendOtpEmail(
+        normalizedEmail,
+        otp,
+        scope === 'buyer' ? 'Buyer Portal' : 'Merchant Portal'
+      );
+
+      if (!emailResult.sent) {
+        await invalidateOtp(scope, normalizedEmail);
+        await clearResendCooldown(`resend:${scope}`, normalizedEmail);
+        return res.status(502).json({ error: 'Failed to deliver OTP email. Please try again later.' });
+      }
 
       return res.status(200).json({
         message: 'A fresh 6-digit OTP has been dispatched to your email.',
@@ -541,25 +660,17 @@ export function createAuthRouter(
       return res.status(401).json({ error: 'No authentication token provided.' });
     }
 
-    const token = authHeader.substring(7);
-    try {
-      const decoded = jwt.verify(token, jwtConfig.jwtSecret, {
-        issuer: jwtConfig.jwtIssuer,
-        audience: [jwtConfig.jwtBuyerAudience, jwtConfig.jwtSellerAudience]
-      }) as jwt.JwtPayload;
-
-      if (!isRoleAudienceConsistent(decoded.role, decoded.aud, jwtConfig)) {
-        return res.status(401).json({ error: 'Authentication token role and audience mismatch.' });
-      }
-
-      return res.status(200).json({
-        authenticated: true,
-        audience: decoded.aud,
-        user: decoded
-      });
-    } catch {
-      return res.status(401).json({ error: 'Authentication token is invalid or expired.' });
+    const token = authHeader.substring(7).trim();
+    const verification = verifyAccessToken(token, jwtConfig);
+    if (!verification.ok) {
+      return res.status(verification.status).json({ error: verification.error });
     }
+
+    return res.status(200).json({
+      authenticated: true,
+      audience: verification.principal.audience,
+      user: verification.principal.claims
+    });
   });
 
   return router;

@@ -20,6 +20,14 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ user
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://clatter-mousiness-smugness.ngrok-free.dev';
 
+  const getAuthHeaders = () => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('streetverse_buyer_token') : null;
+    return {
+      'ngrok-skip-browser-warning': 'true',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    };
+  };
+
   const handleRequestEmailChange = async (e: React.FormEvent) => {
     e.preventDefault();
     if (email === user.email && fullName === user.fullName) {
@@ -32,10 +40,11 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ user
     if (email !== user.email) {
       setLoading(true);
       try {
-        await axios.post(`${API_URL}/api/user/request-email-change`, {
-          newEmail: email,
-          userId: user.id
-        }, { withCredentials: true, headers: { 'ngrok-skip-browser-warning': 'true' } });
+        await axios.post(
+          `${API_URL}/api/user/request-email-change`,
+          { newEmail: email },
+          { withCredentials: true, headers: getAuthHeaders() }
+        );
         
         setIsVerifyingEmail(true);
         setStatus({ type: 'success', message: 'OTP sent to your new email!' });
@@ -55,14 +64,14 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ user
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await axios.post(`${API_URL}/api/user/verify-email-change`, {
-        newEmail: email,
-        userId: user.id,
-        otp
-      }, { withCredentials: true, headers: { 'ngrok-skip-browser-warning': 'true' } });
+      const res = await axios.post(
+        `${API_URL}/api/user/verify-email-change`,
+        { newEmail: email, otp },
+        { withCredentials: true, headers: getAuthHeaders() }
+      );
       
       setStatus({ type: 'success', message: 'Email updated successfully!' });
-      onUserUpdated(res.data.user);
+      onUserUpdated({ ...user, ...res.data.user });
       setTimeout(() => onClose(), 1500);
     } catch (err: any) {
       setStatus({ type: 'error', message: err.response?.data?.error || 'Invalid OTP.' });

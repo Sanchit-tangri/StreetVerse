@@ -6,7 +6,7 @@ import Redis from 'ioredis';
 import { v4 as uuidv4 } from 'uuid';
 import { GatewayConfig } from './config/env';
 import { corsErrorHandler, createCorsOptions } from './config/cors';
-import { configureEmailRedis } from './services/email';
+import { configureEmailService } from './services/email';
 import { createAuthRouter } from './routes/auth';
 import { createUserRouter } from './routes/user';
 import { createSearchRouter } from './routes/search';
@@ -22,7 +22,10 @@ export function createGatewayApp(config: GatewayConfig, deps: GatewayAppDeps = {
   const app = express();
   const corsOptions = createCorsOptions(config.allowedOrigins);
 
-  configureEmailRedis(config.redisUrl);
+  configureEmailService({
+    redisUrl: config.redisUrl,
+    nodeEnv: config.nodeEnv
+  });
 
   app.use(cors(corsOptions));
   app.use(corsErrorHandler);
@@ -44,8 +47,8 @@ export function createGatewayApp(config: GatewayConfig, deps: GatewayAppDeps = {
   // Mount StreetVerse Authentication Router (Buyer & Seller)
   app.use('/api/v1/auth', createAuthRouter(customerPool, merchantPool, config));
 
-  // Mount User Settings Router
-  app.use('/api/user', createUserRouter(customerPool));
+  // Mount User Settings Router (JWT protected)
+  app.use('/api/user', createUserRouter(customerPool, config));
 
   // Mount AI Search Proxy Router
   app.use('/api/v1/search', createSearchRouter(merchantPool, config.aiEngineUrl));

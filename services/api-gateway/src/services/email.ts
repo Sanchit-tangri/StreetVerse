@@ -1,19 +1,46 @@
 import crypto from 'crypto';
-import nodemailer from 'nodemailer';
+import nodemailer, { Transporter } from 'nodemailer';
 import Redis from 'ioredis';
 
+export const OTP_TTL_SECONDS = 300; // 5 minutes
+export const MAX_OTP_ATTEMPTS = 3;
+export const RESEND_COOLDOWN_SECONDS = 45;
+
 let configuredRedisUrl: string | undefined;
+let configuredNodeEnv: string | undefined;
 let redisClientInstance: Redis | null = null;
+let injectedRedisClient: Redis | null = null;
+let injectedTransporter: Pick<Transporter, 'sendMail'> | null = null;
 
 /**
- * Configures the Redis URL used by OTP storage before lazy client creation.
+ * Configures runtime options for email and Redis-backed OTP storage.
  */
-export function configureEmailRedis(redisUrl: string): void {
-  if (redisClientInstance && configuredRedisUrl !== redisUrl) {
-    redisClientInstance.disconnect();
-    redisClientInstance = null;
+export function configureEmailService(options: {
+  redisUrl?: string;
+  nodeEnv?: string;
+  redisClient?: Redis | null;
+  transporter?: Pick<Transporter, 'sendMail'> | null;
+}): void {
+  if (options.redisUrl !== undefined) {
+    if (redisClientInstance && configuredRedisUrl !== options.redisUrl) {
+      redisClientInstance.disconnect();
+      redisClientInstance = null;
+    }
+    configuredRedisUrl = options.redisUrl;
   }
-  configuredRedisUrl = redisUrl;
+  if (options.nodeEnv !== undefined) {
+    configuredNodeEnv = options.nodeEnv.trim().toLowerCase();
+  }
+  if (options.redisClient !== undefined) {
+    injectedRedisClient = options.redisClient;
+  }
+  if (options.transporter !== undefined) {
+    injectedTransporter = options.transporter;
+  }
+}
+
+export function configureEmailRedis(redisUrl: string): void {
+  configureEmailService({ redisUrl });
 }
 
 /**
@@ -21,6 +48,9 @@ export function configureEmailRedis(redisUrl: string): void {
  * top-level Redis or dotenv side effects.
  */
 export function getRedisClient(): Redis {
+  if (injectedRedisClient) {
+    return injectedRedisClient;
+  }
   if (!redisClientInstance) {
     const url = configuredRedisUrl || process.env.REDIS_URL || 'redis://localhost:6380';
     redisClientInstance = new Redis(url, {
@@ -38,6 +68,9 @@ export function getRedisClient(): Redis {
 }
 
 async function getReadyRedisClient(): Promise<Redis | null> {
+  if (injectedRedisClient) {
+    return injectedRedisClient;
+  }
   const client = getRedisClient();
   if (client.status === 'ready') {
     return client;
@@ -60,11 +93,91 @@ export function disconnectEmailRedis(): void {
   }
 }
 
-// In-Memory Fallback for OTPs when Redis/Docker is offline
+/**
+ * DEFERRED S1.3: Process-local OTP/cooldown fallbacks exist only until S1.3 removes
+ * runtime memory fallback and enforces strict Redis availability.
+ */
 const memoryOtpMap = new Map<string, { otp: string; attempts: number; expiresAt: number }>();
+const memoryCooldownMap = new Map<string, number>();
 
-// Helper to configure SMTP transport dynamically
-function getTransporter() {
+export function clearMemoryOtpStateForTests(): void {
+  memoryOtpMap.clear();
+  memoryCooldownMap.clear();
+}
+
+const VERIFY_OTP_LUA = `
+local otpKey = KEYS[1]
+local attemptsKey = KEYS[2]
+local candidate = ARGV[1]
+local maxAttempts = tonumber(ARGV[2])
+
+local stored = redis.call('GET', otpKey)
+if not stored then
+  return {0, 'EXPIRED', 0}
+end
+
+local attempts = tonumber(redis.call('GET', attemptsKey) or '0')
+if attempts >= maxAttempts then
+  redis.call('DEL', otpKey, attemptsKey)
+  return {0, 'LOCKED', 0}
+end
+
+if stored ~= candidate then
+  local nextAttempts = redis.call('INCR', attemptsKey)
+  if nextAttempts >= maxAttempts then
+    redis.call('DEL', otpKey, attemptsKey)
+    return {0, 'LOCKED', 0}
+  end
+  local ttl = redis.call('TTL', otpKey)
+  if ttl > 0 then
+    redis.call('EXPIRE', attemptsKey, ttl)
+  end
+  return {0, 'MISMATCH', maxAttempts - nextAttempts}
+end
+
+redis.call('DEL', otpKey, attemptsKey)
+return {1, 'OK', 0}
+`;
+
+function buildOtpKeys(scopeOrIdentifier: string, maybeIdentifier?: string): { key: string; attemptsKey: string } {
+  if (maybeIdentifier !== undefined) {
+    const scope = scopeOrIdentifier.trim().toLowerCase();
+    const identifier = maybeIdentifier.trim().toLowerCase();
+    return {
+      key: `otp:${scope}:${identifier}`,
+      attemptsKey: `otp_attempts:${scope}:${identifier}`
+    };
+  }
+  const identifier = scopeOrIdentifier.trim().toLowerCase();
+  return {
+    key: `otp:${identifier}`,
+    attemptsKey: `otp_attempts:${identifier}`
+  };
+}
+
+function buildCooldownKey(scope: string, identifier: string): string {
+  return `otp_cooldown:${scope.trim().toLowerCase()}:${identifier.trim().toLowerCase()}`;
+}
+
+function getRuntimeEnv(): string {
+  return (configuredNodeEnv || process.env.NODE_ENV || 'development').trim().toLowerCase();
+}
+
+function isPlaceholderConfigValue(val: string): boolean {
+  const trimmed = val.trim();
+  return !trimmed || /^(YOUR_|CHANGE_ME|REPLACE_WITH|EXAMPLE_|TODO_|<.*>)/i.test(trimmed);
+}
+
+function isSmtpConfigured(): boolean {
+  const user = (process.env.SMTP_USER || '').trim();
+  const pass = (process.env.SMTP_PASS || '').replace(/\s+/g, '');
+  return !isPlaceholderConfigValue(user) && !isPlaceholderConfigValue(pass);
+}
+
+function getTransporter(): Pick<Transporter, 'sendMail'> {
+  if (injectedTransporter) {
+    return injectedTransporter;
+  }
   const host = process.env.SMTP_HOST || 'smtp.gmail.com';
   const port = parseInt(process.env.SMTP_PORT || '465', 10);
   const secure = process.env.SMTP_SECURE === 'true' || port === 465;
@@ -79,165 +192,213 @@ function getTransporter() {
   });
 }
 
-const OTP_TTL_SECONDS = 300; // 5 minutes
-const MAX_ATTEMPTS = 3;
-
 /**
- * Generates a cryptographically random 6-digit numeric OTP
+ * Generates a cryptographically random 6-digit numeric OTP (100000 through 999999 inclusive).
  */
 export function generateOtp(): string {
-  return crypto.randomInt(100000, 999999).toString();
+  return crypto.randomInt(100000, 1000000).toString();
 }
 
 /**
- * Stores the OTP in Redis with 5-minute TTL (with memory fallback)
+ * Stores the OTP in Redis with 5-minute TTL (isolated memory fallback retained until S1.3).
  */
 export async function storeOtp(
   scopeOrIdentifier: string,
   identifierOrOtp: string,
   maybeOtp?: string
 ): Promise<void> {
-  let key: string;
-  let attemptsKey: string;
-  let otp: string;
-
-  if (maybeOtp !== undefined) {
-    const scope = scopeOrIdentifier;
-    const identifier = identifierOrOtp.trim().toLowerCase();
-    key = `otp:${scope}:${identifier}`;
-    attemptsKey = `otp_attempts:${scope}:${identifier}`;
-    otp = maybeOtp;
-  } else {
-    const identifier = scopeOrIdentifier.trim().toLowerCase();
-    key = `otp:${identifier}`;
-    attemptsKey = `otp_attempts:${identifier}`;
-    otp = identifierOrOtp;
-  }
-
-  // Store in memory always as reliable backup
-  memoryOtpMap.set(key, {
-    otp,
-    attempts: 0,
-    expiresAt: Date.now() + OTP_TTL_SECONDS * 1000
-  });
+  const { key, attemptsKey } =
+    maybeOtp !== undefined
+      ? buildOtpKeys(scopeOrIdentifier, identifierOrOtp)
+      : buildOtpKeys(scopeOrIdentifier);
+  const otp = maybeOtp !== undefined ? maybeOtp : identifierOrOtp;
 
   try {
     const client = await getReadyRedisClient();
     if (client) {
       await client.set(key, otp, 'EX', OTP_TTL_SECONDS);
       await client.set(attemptsKey, '0', 'EX', OTP_TTL_SECONDS);
+      memoryOtpMap.delete(key);
+      return;
     }
-  } catch { }
+  } catch {
+    // Fall through to deferred S1.3 memory fallback when Redis is unavailable
+  }
+
+  memoryOtpMap.set(key, {
+    otp,
+    attempts: 0,
+    expiresAt: Date.now() + OTP_TTL_SECONDS * 1000
+  });
 }
 
 /**
- * Verifies an OTP against Redis (with memory fallback), tracking attempts
+ * Invalidates an active OTP challenge and its attempt counter.
+ */
+export async function invalidateOtp(scopeOrIdentifier: string, maybeIdentifier?: string): Promise<void> {
+  const { key, attemptsKey } = buildOtpKeys(scopeOrIdentifier, maybeIdentifier);
+  memoryOtpMap.delete(key);
+
+  try {
+    const client = await getReadyRedisClient();
+    if (client) {
+      await client.del(key, attemptsKey);
+    }
+  } catch {
+    // Ignore Redis error on cleanup
+  }
+}
+
+/**
+ * Atomically enforces a 45-second server-side resend cooldown.
+ */
+export async function acquireResendCooldown(
+  scope: string,
+  identifier: string,
+  cooldownSeconds: number = RESEND_COOLDOWN_SECONDS
+): Promise<{ allowed: boolean; retryAfterSeconds?: number }> {
+  const cooldownKey = buildCooldownKey(scope, identifier);
+
+  try {
+    const client = await getReadyRedisClient();
+    if (client) {
+      const setRes = await client.set(cooldownKey, '1', 'EX', cooldownSeconds, 'NX');
+      if (setRes === 'OK') {
+        memoryCooldownMap.delete(cooldownKey);
+        return { allowed: true };
+      }
+      const ttl = await client.ttl(cooldownKey);
+      return {
+        allowed: false,
+        retryAfterSeconds: ttl > 0 ? ttl : cooldownSeconds
+      };
+    }
+  } catch {
+    // Fall through to memory cooldown map until S1.3 removes fallback
+  }
+
+  const now = Date.now();
+  const expiresAt = memoryCooldownMap.get(cooldownKey);
+  if (expiresAt && expiresAt > now) {
+    return {
+      allowed: false,
+      retryAfterSeconds: Math.max(1, Math.ceil((expiresAt - now) / 1000))
+    };
+  }
+  memoryCooldownMap.set(cooldownKey, now + cooldownSeconds * 1000);
+  return { allowed: true };
+}
+
+export async function clearResendCooldown(scope: string, identifier: string): Promise<void> {
+  const cooldownKey = buildCooldownKey(scope, identifier);
+  memoryCooldownMap.delete(cooldownKey);
+
+  try {
+    const client = await getReadyRedisClient();
+    if (client) {
+      await client.del(cooldownKey);
+    }
+  } catch {
+    // Ignore cleanup errors
+  }
+}
+
+/**
+ * Atomically verifies an OTP via Redis Lua script (or synchronous single-use memory fallback until S1.3).
  */
 export async function verifyOtp(
   scopeOrIdentifier: string,
   identifierOrCandidate: string,
   maybeCandidate?: string
 ): Promise<{ valid: boolean; reason?: string }> {
-  let key: string;
-  let attemptsKey: string;
-  let candidateOtp: string;
+  const { key, attemptsKey } =
+    maybeCandidate !== undefined
+      ? buildOtpKeys(scopeOrIdentifier, identifierOrCandidate)
+      : buildOtpKeys(scopeOrIdentifier);
+  const candidateOtp = (maybeCandidate !== undefined ? maybeCandidate : identifierOrCandidate).trim();
 
-  if (maybeCandidate !== undefined) {
-    const scope = scopeOrIdentifier;
-    const identifier = identifierOrCandidate.trim().toLowerCase();
-    key = `otp:${scope}:${identifier}`;
-    attemptsKey = `otp_attempts:${scope}:${identifier}`;
-    candidateOtp = maybeCandidate;
-  } else {
-    const identifier = scopeOrIdentifier.trim().toLowerCase();
-    key = `otp:${identifier}`;
-    attemptsKey = `otp_attempts:${identifier}`;
-    candidateOtp = identifierOrCandidate;
+  if (!candidateOtp) {
+    return { valid: false, reason: 'OTP code is required.' };
   }
-
-  let storedOtp: string | null = null;
-  let attempts = 0;
 
   try {
     const client = await getReadyRedisClient();
     if (client) {
-      storedOtp = await client.get(key);
-      attempts = parseInt((await client.get(attemptsKey)) || '0', 10);
-    }
-  } catch { }
+      const evalRes = (await client.eval(
+        VERIFY_OTP_LUA,
+        2,
+        key,
+        attemptsKey,
+        candidateOtp,
+        String(MAX_OTP_ATTEMPTS)
+      )) as [number, string, number];
 
-  // Fallback to memory store if Redis is unavailable or expired in Redis
-  if (!storedOtp) {
-    const mem = memoryOtpMap.get(key);
-    if (mem && mem.expiresAt > Date.now()) {
-      storedOtp = mem.otp;
-      attempts = mem.attempts;
+      const [ok, code, remaining] = evalRes;
+      memoryOtpMap.delete(key);
+
+      if (ok === 1) {
+        return { valid: true };
+      }
+      if (code === 'EXPIRED') {
+        return { valid: false, reason: 'OTP has expired or was not requested.' };
+      }
+      if (code === 'LOCKED') {
+        return { valid: false, reason: 'Too many incorrect attempts. Please request a new OTP.' };
+      }
+      return { valid: false, reason: `Invalid OTP. ${remaining} attempts remaining.` };
     }
+  } catch {
+    // Fall through to deferred S1.3 memory fallback when Redis is unavailable
   }
 
-  if (!storedOtp) {
+  // Memory fallback executes synchronously with zero await points, preventing concurrent replay in single-process tests
+  const mem = memoryOtpMap.get(key);
+  if (!mem || mem.expiresAt <= Date.now()) {
+    memoryOtpMap.delete(key);
     return { valid: false, reason: 'OTP has expired or was not requested.' };
   }
 
-  if (attempts >= MAX_ATTEMPTS) {
-    try {
-      const client = await getReadyRedisClient();
-      if (client) {
-        await client.del(key);
-        await client.del(attemptsKey);
-      }
-    } catch { }
+  if (mem.attempts >= MAX_OTP_ATTEMPTS) {
     memoryOtpMap.delete(key);
     return { valid: false, reason: 'Too many incorrect attempts. Please request a new OTP.' };
   }
 
-  if (storedOtp !== candidateOtp.trim()) {
-    try {
-      const client = await getReadyRedisClient();
-      if (client) {
-        await client.incr(attemptsKey);
-      }
-    } catch { }
-    const mem = memoryOtpMap.get(key);
-    if (mem) mem.attempts += 1;
-
-    return { valid: false, reason: `Invalid OTP. ${MAX_ATTEMPTS - (attempts + 1)} attempts remaining.` };
+  if (mem.otp !== candidateOtp) {
+    mem.attempts += 1;
+    if (mem.attempts >= MAX_OTP_ATTEMPTS) {
+      memoryOtpMap.delete(key);
+      return { valid: false, reason: 'Too many incorrect attempts. Please request a new OTP.' };
+    }
+    return { valid: false, reason: `Invalid OTP. ${MAX_OTP_ATTEMPTS - mem.attempts} attempts remaining.` };
   }
 
-  // Valid OTP -> delete to prevent reuse
-  try {
-    const client = await getReadyRedisClient();
-    if (client) {
-      await client.del(key);
-      await client.del(attemptsKey);
-    }
-  } catch { }
   memoryOtpMap.delete(key);
-
   return { valid: true };
 }
 
 /**
- * Sends OTP via SMTP email or logs to console if SMTP is unconfigured
+ * Sends OTP via SMTP with honest delivery reporting.
+ * Never returns sent: true when SMTP delivery fails or when SMTP is unconfigured in staging/production.
  */
 export async function sendOtpEmail(
   recipientEmail: string,
   otp: string,
   roleName: string = 'User'
-): Promise<{ sent: boolean; preview?: string }> {
+): Promise<{ sent: boolean; error?: string }> {
   const normalizedEmail = recipientEmail.trim().toLowerCase();
   const senderAddress = process.env.SMTP_FROM || '"StreetVerse Security" <security@streetverse.in>';
+  const envName = getRuntimeEnv();
 
   const mailOptions = {
     from: senderAddress,
     to: normalizedEmail,
-    subject: `[StreetVerse] Your ${roleName} Login Verification Code: ${otp}`,
+    subject: `[StreetVerse] Your ${roleName} Verification Code`,
     text: `Hello,\n\nYour 6-digit verification code for StreetVerse (${roleName}) is: ${otp}\n\nThis code will expire in 5 minutes.\nIf you did not request this code, please ignore this email.\n\nBest regards,\nStreetVerse Security Team`,
     html: `
       <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 500px; margin: 0 auto; background: #FFFDF9; border: 1px solid #E6DFD5; border-radius: 12px; padding: 24px; color: #2C241B;">
         <h2 style="color: #7A3E1D; margin-top: 0;">StreetVerse Verification</h2>
         <p style="font-size: 15px; color: #5D5043;">Hello,</p>
-        <p style="font-size: 15px; color: #5D5043;">Use the verification code below to complete your login to the <strong>${roleName}</strong> portal:</p>
+        <p style="font-size: 15px; color: #5D5043;">Use the verification code below to complete your request for <strong>${roleName}</strong>:</p>
         <div style="text-align: center; margin: 28px 0;">
           <span style="display: inline-block; font-size: 32px; font-weight: 700; letter-spacing: 6px; padding: 12px 28px; background: #F3ECE1; border-radius: 8px; color: #7A3E1D; border: 1px dashed #BFB29E;">
             ${otp}
@@ -245,29 +406,35 @@ export async function sendOtpEmail(
         </div>
         <p style="font-size: 13px; color: #8C7D6B;">This code is valid for <strong>5 minutes</strong>. Never share this code with anyone.</p>
         <hr style="border: none; border-top: 1px solid #E6DFD5; margin: 20px 0;" />
-        <p style="font-size: 11px; color: #AFA495; text-align: center;">StreetVerse Hyperlocal Commerce & Service Discovery Platform &bull; MIT-WPU</p>
+        <p style="font-size: 11px; color: #AFA495; text-align: center;">StreetVerse Hyperlocal Commerce &bull; Security</p>
       </div>
     `
   };
 
-  // Check if SMTP credentials are provided
-  if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+  if (injectedTransporter || isSmtpConfigured()) {
     try {
       await getTransporter().sendMail(mailOptions);
-      console.log(`[Email Service] Sent OTP email successfully to ${normalizedEmail}`);
       return { sent: true };
-    } catch (error) {
-      console.warn(`[Email Service] SMTP delivery notice (using console fallback):`, error);
-      console.log(`[Email Service] Fallback OTP for ${normalizedEmail}: >>> [ ${otp} ] <<<`);
-      return { sent: true, preview: otp };
+    } catch {
+      console.error(`[Email Service] SMTP delivery failed for ${normalizedEmail}.`);
+      return { sent: false, error: 'SMTP email delivery failed.' };
     }
-  } else {
-    // Development / evaluation mode: Log to console
+  }
+
+  if (envName === 'development') {
     console.log(`\n======================================================`);
     console.log(`   [DEV EMAIL MOCK] StreetVerse ${roleName} OTP Email`);
     console.log(`   To: ${normalizedEmail}`);
     console.log(`   Verification Code: >>> [ ${otp} ] <<< (Valid 5 mins)`);
     console.log(`======================================================\n`);
-    return { sent: true, preview: otp };
+    return { sent: true };
   }
+
+  if (envName === 'test') {
+    // Controlled test fallback avoids printing OTP values to stdout
+    return { sent: true };
+  }
+
+  console.error(`[Email Service] SMTP is not configured in ${envName} environment.`);
+  return { sent: false, error: 'SMTP email delivery is not configured.' };
 }
