@@ -1,14 +1,27 @@
 import React, { useState } from 'react';
 import { X, CheckCircle2, ShieldAlert } from 'lucide-react';
 import axios from 'axios';
+import {
+  AuthenticatedBuyerUser,
+  buildBuyerAuthHeaders,
+  clearBuyerSession,
+  readBuyerAccessToken,
+  resolveBuyerApiUrl
+} from '../../utils/buyerSession';
 
 interface ProfileSettingsModalProps {
-  user: any;
+  user: AuthenticatedBuyerUser;
   onClose: () => void;
-  onUserUpdated: (updatedUser: any) => void;
+  onUserUpdated: (updatedUser: AuthenticatedBuyerUser) => void;
+  onSessionExpired?: (message: string) => void;
 }
 
-export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ user, onClose, onUserUpdated }) => {
+export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
+  user,
+  onClose,
+  onUserUpdated,
+  onSessionExpired
+}) => {
   const [fullName, setFullName] = useState(user.fullName || '');
   const [email, setEmail] = useState(user.email || '');
   
@@ -18,18 +31,33 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ user
   const [status, setStatus] = useState<{ type: 'error' | 'success' | 'info'; message: string } | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://clatter-mousiness-smugness.ngrok-free.dev';
+  const API_URL = resolveBuyerApiUrl();
 
-  const getAuthHeaders = () => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('streetverse_buyer_token') : null;
-    return {
-      'ngrok-skip-browser-warning': 'true',
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
-    };
+  const getAuthHeaders = () => buildBuyerAuthHeaders(readBuyerAccessToken());
+
+  const handleUnauthorizedResponse = (err: any, fallbackMessage: string): boolean => {
+    const httpStatus = err?.response?.status;
+    if (httpStatus === 401 || httpStatus === 403) {
+      const msg = err?.response?.data?.error || 'Your buyer session has expired. Please sign in again.';
+      clearBuyerSession();
+      if (onSessionExpired) {
+        onSessionExpired(msg);
+      } else {
+        setStatus({ type: 'error', message: msg });
+      }
+      return true;
+    }
+    setStatus({ type: 'error', message: err?.response?.data?.error || fallbackMessage });
+    return false;
   };
 
   const handleRequestEmailChange = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!readBuyerAccessToken()) {
+      clearBuyerSession();
+      onSessionExpired?.('Your buyer session has expired. Please sign in again.');
+      return;
+    }
     if (email === user.email && fullName === user.fullName) {
       setStatus({ type: 'info', message: 'No changes made.' });
       return;
@@ -49,7 +77,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ user
         setIsVerifyingEmail(true);
         setStatus({ type: 'success', message: 'OTP sent to your new email!' });
       } catch (err: any) {
-        setStatus({ type: 'error', message: err.response?.data?.error || 'Failed to send OTP.' });
+        handleUnauthorizedResponse(err, 'Failed to send OTP.');
       } finally {
         setLoading(false);
       }
@@ -62,6 +90,11 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ user
 
   const handleVerifyEmail = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!readBuyerAccessToken()) {
+      clearBuyerSession();
+      onSessionExpired?.('Your buyer session has expired. Please sign in again.');
+      return;
+    }
     setLoading(true);
     try {
       const res = await axios.post(
@@ -74,7 +107,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ user
       onUserUpdated({ ...user, ...res.data.user });
       setTimeout(() => onClose(), 1500);
     } catch (err: any) {
-      setStatus({ type: 'error', message: err.response?.data?.error || 'Invalid OTP.' });
+      handleUnauthorizedResponse(err, 'Invalid OTP.');
     } finally {
       setLoading(false);
     }

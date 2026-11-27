@@ -1,9 +1,21 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Head from 'next/head';
 import axios from 'axios';
 import { BuyerAuth } from '../components/auth/BuyerAuth';
 import { ProfileSettingsModal } from '../components/dashboard/ProfileSettingsModal';
 import { getTranslation } from '../utils/translations';
+import {
+  createInitialBookingFlowState,
+  resolveConfirmBookingOutcome,
+  resolveLockSlotOutcome
+} from '../utils/bookingFlow';
+import {
+  AuthenticatedBuyerUser,
+  buildBuyerAuthHeaders,
+  clearBuyerSession,
+  hydrateBuyerSession,
+  resolveBuyerApiUrl
+} from '../utils/buyerSession';
 
 interface MarketplaceItem {
   id: string;
@@ -206,8 +218,11 @@ export default function BuyerHome() {
     }
   };
 
-  // User & Auth State (Strictly gating login first)
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  // User & Auth State (Strictly server-hydrated via GET /api/v1/auth/me)
+  const [currentUser, setCurrentUser] = useState<AuthenticatedBuyerUser | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+  const [sessionNotice, setSessionNotice] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
@@ -239,6 +254,8 @@ export default function BuyerHome() {
   const [lockToken, setLockToken] = useState<string | null>(null);
   const [bookingConfirmedReceipt, setBookingConfirmedReceipt] = useState<any>(null);
   const [isLocking, setIsLocking] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [bookingError, setBookingError] = useState<string | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://clatter-mousiness-smugness.ngrok-free.dev';
@@ -283,17 +300,34 @@ export default function BuyerHome() {
     }
   }, [theme]);
 
-  // Check existing session in localStorage
-  useEffect(() => {
-    try {
-      const savedUser = localStorage.getItem('streetverse_buyer_user');
-      const savedToken = localStorage.getItem('streetverse_buyer_token');
-      if (savedUser && savedToken) {
-        setCurrentUser(JSON.parse(savedUser));
+  const refreshBuyerSession = useCallback(async () => {
+    const result = await hydrateBuyerSession({ apiUrl: API_URL });
+    if (result.status === 'authenticated' && result.user && result.token) {
+      setCurrentUser(result.user);
+      setAuthToken(result.token);
+      setSessionError(null);
+      setSessionNotice(null);
+    } else if (result.status === 'service_unavailable') {
+      setCurrentUser(null);
+      setAuthToken(result.token);
+      setSessionError(
+        result.errorMessage || 'Authentication service is temporarily unavailable. Please retry.'
+      );
+    } else {
+      setCurrentUser(null);
+      setAuthToken(null);
+      setSessionError(null);
+      if (result.errorMessage) {
+        setSessionNotice(result.errorMessage);
       }
-    } catch { }
+    }
     setAuthChecked(true);
-  }, []);
+  }, [API_URL]);
+
+  // Hydrate authenticated buyer session from /api/v1/auth/me (never trust local profile cache)
+  useEffect(() => {
+    void refreshBuyerSession();
+  }, [refreshBuyerSession]);
 
   // Keyboard shortcut: Cmd+K / Ctrl+K focuses search
   useEffect(() => {
@@ -339,11 +373,13 @@ export default function BuyerHome() {
     return () => clearInterval(timer);
   }, [isSlotLocked, slotCountdown]);
 
-  // Sign out handler (takes user back to login page)
-  const handleLogout = () => {
-    localStorage.removeItem('streetverse_buyer_user');
-    localStorage.removeItem('streetverse_buyer_token');
+  // Sign out handler (clears persisted token cleanly and returns to sign-in screen)
+  const handleLogout = (notice?: string) => {
+    clearBuyerSession();
     setCurrentUser(null);
+    setAuthToken(null);
+    setSessionError(null);
+    setSessionNotice(typeof notice === 'string' && notice.trim().length > 0 ? notice : null);
     setIsProfileDropdownOpen(false);
   };
 
@@ -491,22 +527,42 @@ export default function BuyerHome() {
   const trayTotal = traySubtotal + trayDeliveryFee + trayTaxes;
 
   // 5-Minute Atomic Slot Booking Handlers
+  const closeSlotBookingModal = () => {
+    const initial = createInitialBookingFlowState();
+    setIsSlotModalOpen(false);
+    setBookingConfirmedReceipt(initial.bookingConfirmedReceipt);
+    setIsSlotLocked(initial.isSlotLocked);
+    setLockToken(initial.lockToken);
+    setSlotCountdown(initial.slotCountdown);
+    setBookingError(initial.bookingError);
+  };
+
   const openSlotBooking = (item: MarketplaceItem) => {
+    const initial = createInitialBookingFlowState();
     setSelectedServiceItem(item);
-    setBookingConfirmedReceipt(null);
-    setIsSlotLocked(false);
-    setSlotCountdown(300);
+    setBookingConfirmedReceipt(initial.bookingConfirmedReceipt);
+    setIsSlotLocked(initial.isSlotLocked);
+    setLockToken(initial.lockToken);
+    setSlotCountdown(initial.slotCountdown);
+    setBookingError(initial.bookingError);
+    setIsLocking(false);
+    setIsConfirming(false);
     setIsSlotModalOpen(true);
   };
 
   const handleLockSlot = async () => {
-    if (!selectedServiceItem) return;
+    if (!selectedServiceItem || isLocking || isConfirming) return;
+    if (!currentUser?.id || !authToken) {
+      setBookingError('Please sign in to lock a booking slot.');
+      return;
+    }
     setIsLocking(true);
+    setBookingError(null);
 
     try {
       const slotId = `slot-${selectedServiceItem.id}-${Date.now().toString().slice(-4)}`;
       const merchantId = 'm2';
-      const userId = currentUser?.id || 'c1000000-0000-0000-0000-000000000001';
+      const userId = currentUser.id;
 
       const res = await axios.post(
         `${API_URL}/api/v1/bookings/lock-slot`,
@@ -517,58 +573,79 @@ export default function BuyerHome() {
           serviceName: selectedServiceItem.title,
           price: selectedServiceItem.price
         },
-        { headers: { 'ngrok-skip-browser-warning': 'true' }, timeout: 5000 }
+        {
+          headers: buildBuyerAuthHeaders(authToken),
+          timeout: 5000,
+          validateStatus: () => true
+        }
       );
 
-      if (res.data && res.data.success) {
-        setIsSlotLocked(true);
-        setLockToken(res.data.lockToken);
-        setSlotCountdown(res.data.expiresInSeconds || 300);
+      if (res.status === 401) {
+        setIsSlotModalOpen(false);
+        handleLogout('Your session has expired. Please sign in again.');
+        return;
       }
-    } catch {
-      setIsSlotLocked(true);
-      setLockToken(`RESILIENT-${Date.now()}`);
-      setSlotCountdown(300);
+
+      const outcome = resolveLockSlotOutcome(res.status, res.data);
+      setIsSlotLocked(outcome.isSlotLocked);
+      setLockToken(outcome.lockToken);
+      setSlotCountdown(outcome.slotCountdown);
+      setBookingError(outcome.bookingError);
+    } catch (err: any) {
+      const status = typeof err?.response?.status === 'number' ? err.response.status : 503;
+      const outcome = resolveLockSlotOutcome(status, err?.response?.data);
+      setIsSlotLocked(outcome.isSlotLocked);
+      setLockToken(outcome.lockToken);
+      setSlotCountdown(outcome.slotCountdown);
+      setBookingError(outcome.bookingError);
     } finally {
       setIsLocking(false);
     }
   };
 
   const handleConfirmBooking = async () => {
-    if (!selectedServiceItem) return;
+    if (!selectedServiceItem || isConfirming || isLocking) return;
+    if (!currentUser?.id || !authToken) {
+      setBookingError('Please sign in to confirm your booking.');
+      return;
+    }
+    setIsConfirming(true);
+    setBookingError(null);
+
     try {
       const res = await axios.post(
         `${API_URL}/api/v1/bookings/confirm-payment`,
         {
           slotId: `slot-${selectedServiceItem.id}`,
-          userId: currentUser?.id || 'c1000000-0000-0000-0000-000000000001',
+          userId: currentUser.id,
           merchantId: 'm2',
           serviceName: selectedServiceItem.title,
           upiRef: `UPI-IND-${Date.now()}`,
           lockToken
         },
-        { headers: { 'ngrok-skip-browser-warning': 'true' }, timeout: 5000 }
+        {
+          headers: buildBuyerAuthHeaders(authToken),
+          timeout: 5000,
+          validateStatus: () => true
+        }
       );
 
-      if (res.data && res.data.receipt) {
-        setBookingConfirmedReceipt(res.data.receipt);
-      } else {
-        setBookingConfirmedReceipt({
-          receiptId: `REC-${Date.now().toString().slice(-6)}`,
-          tokenNumber: 314,
-          serviceName: selectedServiceItem.title,
-          status: 'CONFIRMED',
-          qrVerificationCode: 'STREETVERSE-PASS-PUNE-314'
-        });
+      if (res.status === 401) {
+        setIsSlotModalOpen(false);
+        handleLogout('Your session has expired. Please sign in again.');
+        return;
       }
-    } catch {
-      setBookingConfirmedReceipt({
-        receiptId: `REC-${Date.now().toString().slice(-6)}`,
-        tokenNumber: 314,
-        serviceName: selectedServiceItem.title,
-        status: 'CONFIRMED',
-        qrVerificationCode: 'STREETVERSE-PASS-PUNE-314'
-      });
+
+      const outcome = resolveConfirmBookingOutcome(res.status, res.data);
+      setBookingConfirmedReceipt(outcome.bookingConfirmedReceipt);
+      setBookingError(outcome.bookingError);
+    } catch (err: any) {
+      const status = typeof err?.response?.status === 'number' ? err.response.status : 503;
+      const outcome = resolveConfirmBookingOutcome(status, err?.response?.data);
+      setBookingConfirmedReceipt(outcome.bookingConfirmedReceipt);
+      setBookingError(outcome.bookingError);
+    } finally {
+      setIsConfirming(false);
     }
   };
 
@@ -592,9 +669,51 @@ export default function BuyerHome() {
     );
   }
 
-  // 2. REQUIRE LOGIN FIRST IF NOT AUTHENTICATED
+  // 2. SERVICE UNAVAILABLE / NETWORK OUTAGE RECOVERY (Preserves valid signed token cleanly)
+  if (sessionError && !currentUser) {
+    return (
+      <div className="min-h-screen bg-[#090D16] flex items-center justify-center p-6 font-body-md text-white">
+        <div className="max-w-md w-full bg-[#111827] border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col gap-4 text-center">
+          <span className="material-symbols-outlined text-3xl text-amber-400 mx-auto">cloud_off</span>
+          <h2 className="text-lg font-bold text-white">Authentication Service Unavailable</h2>
+          <p className="text-sm text-slate-300">{sessionError}</p>
+          <div className="flex flex-col sm:flex-row gap-2 justify-center mt-2">
+            <button
+              className="px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90"
+              onClick={() => {
+                setAuthChecked(false);
+                void refreshBuyerSession();
+              }}
+              type="button"
+            >
+              Retry Session Check
+            </button>
+            <button
+              className="px-4 py-2 rounded-xl bg-slate-800 text-slate-200 text-sm font-semibold hover:bg-slate-700"
+              onClick={() => handleLogout()}
+              type="button"
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. REQUIRE LOGIN FIRST IF NOT AUTHENTICATED
   if (!currentUser) {
-    return <BuyerAuth onAuthSuccess={(user) => setCurrentUser(user)} />;
+    return (
+      <BuyerAuth
+        sessionNotice={sessionNotice}
+        onAuthSuccess={(user, token) => {
+          setCurrentUser(user);
+          setAuthToken(token);
+          setSessionError(null);
+          setSessionNotice(null);
+        }}
+      />
+    );
   }
 
   // 3. AUTHENTICATED BUYER MARKETPLACE EXPERIENCE
@@ -809,10 +928,10 @@ export default function BuyerHome() {
                   <div className="bg-surface-container-lowest rounded-xl shadow-[0_12px_32px_-4px_rgba(15,23,42,0.15)] p-space-sm flex flex-col gap-space-2xs border border-surface-container">
                     <div className="px-space-sm py-space-xs">
                       <p className="font-label-md text-label-md font-semibold text-on-surface">
-                        {currentUser.fullName || 'Rahul Deshmukh'}
+                        {currentUser.fullName || 'Verified Buyer'}
                       </p>
                       <p className="font-label-sm text-label-sm text-outline truncate">{currentUser.email}</p>
-                      <p className="font-mono text-[11px] text-secondary mt-0.5">{currentUser.phone || '+91 98901 23456'}</p>
+                      <p className="font-mono text-[11px] text-secondary mt-0.5">{currentUser.phone || ''}</p>
                     </div>
                     <div className="h-px bg-surface-container-high my-space-2xs" />
                     <button
@@ -836,7 +955,7 @@ export default function BuyerHome() {
                     </a>
                     <button
                       className="flex items-center gap-space-sm px-space-sm py-space-xs font-label-md text-label-md rounded-lg text-error hover:bg-error-container/20 transition-colors text-left font-semibold"
-                      onClick={handleLogout}
+                      onClick={() => handleLogout()}
                     >
                       <span className="material-symbols-outlined text-base">logout</span>
                       Sign Out (Exit to Login)
@@ -1551,7 +1670,7 @@ export default function BuyerHome() {
               </div>
               <button
                 className="p-1 rounded-full hover:bg-surface-container text-outline hover:text-on-surface"
-                onClick={() => setIsSlotModalOpen(false)}
+                onClick={closeSlotBookingModal}
                 type="button"
               >
                 <span className="material-symbols-outlined">close</span>
@@ -1579,7 +1698,8 @@ export default function BuyerHome() {
                 </div>
                 <button
                   className="w-full py-space-xs px-space-md rounded-xl bg-primary text-on-primary font-label-md text-label-md font-semibold"
-                  onClick={() => setIsSlotModalOpen(false)}
+                  onClick={closeSlotBookingModal}
+                  type="button"
                 >
                   Done
                 </button>
@@ -1619,6 +1739,27 @@ export default function BuyerHome() {
                   </button>
                 </div>
 
+                {bookingError && (
+                  <div
+                    role="alert"
+                    className="bg-red-500/10 border border-red-500/30 text-red-700 dark:text-red-300 rounded-xl p-space-sm flex flex-col gap-2"
+                  >
+                    <div className="flex items-start gap-2">
+                      <span className="material-symbols-outlined text-base shrink-0 mt-0.5">error</span>
+                      <p className="font-label-md text-label-md font-semibold">{bookingError}</p>
+                    </div>
+                    <div className="flex justify-end">
+                      <button
+                        className="px-space-sm py-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface font-label-sm text-label-sm font-semibold"
+                        onClick={closeSlotBookingModal}
+                        type="button"
+                      >
+                        Close & Continue Browsing
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Lock Status & Countdown Timer */}
                 {isSlotLocked ? (
                   <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-xl p-space-sm flex items-center justify-between">
@@ -1651,19 +1792,21 @@ export default function BuyerHome() {
                   </div>
                   {!isSlotLocked ? (
                     <button
-                      className="px-space-md py-space-xs rounded-xl bg-primary text-on-primary font-label-md text-label-md font-semibold shadow-sm hover:opacity-95"
+                      className="px-space-md py-space-xs rounded-xl bg-primary text-on-primary font-label-md text-label-md font-semibold shadow-sm hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={isLocking || isConfirming}
                       onClick={handleLockSlot}
                       type="button"
                     >
-                      {isLocking ? 'Holding Slot...' : 'Lock Slot (5 Mins)'}
+                      {isLocking ? 'Checking Availability...' : 'Lock Slot (5 Mins)'}
                     </button>
                   ) : (
                     <button
-                      className="px-space-md py-space-xs rounded-xl bg-secondary text-on-secondary font-label-md text-label-md font-semibold shadow-sm hover:opacity-95 animate-pulse flex items-center gap-1"
+                      className="px-space-md py-space-xs rounded-xl bg-secondary text-on-secondary font-label-md text-label-md font-semibold shadow-sm hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                      disabled={isConfirming || isLocking}
                       onClick={handleConfirmBooking}
                       type="button"
                     >
-                      <span>Pay ₹{selectedServiceItem.price} with UPI</span>
+                      <span>{isConfirming ? 'Confirming...' : `Pay ₹${selectedServiceItem.price} with UPI`}</span>
                     </button>
                   )}
                 </div>
@@ -1779,9 +1922,13 @@ export default function BuyerHome() {
         <ProfileSettingsModal
           user={currentUser}
           onClose={() => setIsSettingsOpen(false)}
+          onSessionExpired={(msg) => {
+            setIsSettingsOpen(false);
+            handleLogout(msg);
+          }}
           onUserUpdated={(updatedUser) => {
             setCurrentUser(updatedUser);
-            localStorage.setItem('streetverse_buyer_user', JSON.stringify(updatedUser));
+            void refreshBuyerSession();
           }}
         />
       )}

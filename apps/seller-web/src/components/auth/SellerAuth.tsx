@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Store, 
   ArrowRight, 
@@ -8,12 +8,30 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react';
+import {
+  AuthorizedSellerStore,
+  clearSellerSession,
+  hydrateSellerSession,
+  resolveSellerApiUrl,
+  saveSellerAccessToken,
+  SellerAccountProfile
+} from '../../utils/sellerSession';
+import { STORE_CATEGORY_OPTIONS } from '../../utils/onboardingConstants';
 
-interface SellerAuthProps {
-  onAuthSuccess: (merchant: any, token: string) => void;
+export interface AuthenticatedSellerSessionPayload {
+  status: 'authenticated' | 'no_stores';
+  sellerAccount: SellerAccountProfile;
+  stores: AuthorizedSellerStore[];
+  activeStore: AuthorizedSellerStore | null;
+  token: string;
 }
 
-export const SellerAuth: React.FC<SellerAuthProps> = ({ onAuthSuccess }) => {
+interface SellerAuthProps {
+  onAuthSuccess: (session: AuthenticatedSellerSessionPayload) => void;
+  sessionNotice?: string | null;
+}
+
+export const SellerAuth: React.FC<SellerAuthProps> = ({ onAuthSuccess, sessionNotice = null }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [step, setStep] = useState<'CREDENTIALS' | 'OTP'>('CREDENTIALS');
 
@@ -35,21 +53,21 @@ export const SellerAuth: React.FC<SellerAuthProps> = ({ onAuthSuccess }) => {
 
   // UI state
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(sessionNotice || null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://clatter-mousiness-smugness.ngrok-free.dev';
+  const API_URL = resolveSellerApiUrl();
+
+  useEffect(() => {
+    if (sessionNotice) {
+      setError(sessionNotice);
+    }
+  }, [sessionNotice]);
 
   const defaultHeaders = {
     'Content-Type': 'application/json',
     'ngrok-skip-browser-warning': 'true'
-  };
-
-  const handleDemoFill = () => {
-    setIsLogin(true);
-    setIdentifier('greenvalley@streetverse.local');
-    setPassword('Password123!');
   };
 
   const handleSubmitCredentials = async (e: React.FormEvent) => {
@@ -128,9 +146,34 @@ export const SellerAuth: React.FC<SellerAuthProps> = ({ onAuthSuccess }) => {
         throw new Error(data.error || 'Invalid verification code.');
       }
 
-      localStorage.setItem('streetverse_seller_token', data.token);
-      localStorage.setItem('streetverse_seller_merchant', JSON.stringify(data.merchant));
-      onAuthSuccess(data.merchant, data.token);
+      if (!saveSellerAccessToken(data?.token)) {
+        clearSellerSession();
+        throw new Error('Authentication server did not issue a valid seller session token.');
+      }
+
+      const hydration = await hydrateSellerSession({
+        apiUrl: API_URL,
+        token: data.token
+      });
+
+      if (
+        (hydration.status !== 'authenticated' && hydration.status !== 'no_stores') ||
+        !hydration.sellerAccount ||
+        !hydration.token
+      ) {
+        if (hydration.status === 'unauthenticated' || hydration.status === 'forbidden') {
+          clearSellerSession();
+        }
+        throw new Error(hydration.errorMessage || 'Unable to verify seller session.');
+      }
+
+      onAuthSuccess({
+        status: hydration.status,
+        sellerAccount: hydration.sellerAccount,
+        stores: hydration.stores,
+        activeStore: hydration.activeStore,
+        token: hydration.token
+      });
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -235,7 +278,7 @@ export const SellerAuth: React.FC<SellerAuthProps> = ({ onAuthSuccess }) => {
                     required
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder="greenvalley@streetverse.local"
+                    placeholder="owner@store.example"
                     className="form-input"
                   />
                 </div>
@@ -283,11 +326,11 @@ export const SellerAuth: React.FC<SellerAuthProps> = ({ onAuthSuccess }) => {
                       onChange={(e) => setCategory(e.target.value)}
                       className="form-input"
                     >
-                      <option value="GROCERY">Grocery</option>
-                      <option value="SALON">Salon</option>
-                      <option value="PHARMACY">Pharmacy</option>
-                      <option value="RESTAURANT">Restaurant</option>
-                      <option value="HARDWARE">Hardware</option>
+                      {STORE_CATEGORY_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -388,13 +431,6 @@ export const SellerAuth: React.FC<SellerAuthProps> = ({ onAuthSuccess }) => {
                 </>
               )}
             </button>
-
-            {/* Discreet Demo Fill */}
-            <div className="demo-footer">
-              <button type="button" onClick={handleDemoFill} className="demo-link">
-                Use Demo Merchant Account
-              </button>
-            </div>
           </form>
         )}
 

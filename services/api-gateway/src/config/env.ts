@@ -13,11 +13,29 @@ export interface GatewayConfig {
   jwtIssuer: string;
   jwtBuyerAudience: string;
   jwtSellerAudience: string;
+  jwtAdminAudience?: string;
   jwtExpiresIn: string;
+  jwtAdminExpiresIn?: string;
   redisUrl: string;
   customerDbUrl: string;
   merchantDbUrl: string;
   aiEngineUrl: string;
+  /**
+   * Absolute path to the private KYC document storage directory.
+   * Files are written here and must NOT be reachable via Express static routes.
+   * Defaults to `<gateway-root>/data/kyc-documents`.
+   *
+   * Limitation: at-rest encryption is not implemented in MO-A.
+   * Production deployments must use an encrypted volume or SSE object storage.
+   */
+  kycStorageDir?: string;
+  notificationWorkerEnabled?: boolean;
+  notificationWorkerPollMs?: number;
+  notificationWorkerBatchSize?: number;
+  notificationWorkerLeaseMs?: number;
+  notificationWorkerMaxAttempts?: number;
+  notificationWorkerBaseRetryMs?: number;
+  notificationWorkerMaxRetryMs?: number;
 }
 
 export interface LoadEnvOptions {
@@ -223,22 +241,42 @@ export function parseGatewayConfig(env: NodeJS.ProcessEnv): GatewayConfig {
   const jwtIssuer = (env.JWT_ISSUER || 'streetverse-api').trim();
   const jwtBuyerAudience = (env.JWT_BUYER_AUDIENCE || 'streetverse-buyer').trim();
   const jwtSellerAudience = (env.JWT_SELLER_AUDIENCE || 'streetverse-seller').trim();
+  const jwtAdminAudience = (env.JWT_ADMIN_AUDIENCE || 'streetverse-admin').trim();
   const jwtExpiresIn = (env.JWT_EXPIRES_IN || '7d').trim();
+  const jwtAdminExpiresIn = (env.JWT_ADMIN_EXPIRES_IN || '8h').trim();
 
   if (!jwtIssuer) {
     throw new Error('Configuration error: JWT_ISSUER must not be empty.');
   }
-  if (!jwtBuyerAudience || !jwtSellerAudience) {
-    throw new Error('Configuration error: JWT_BUYER_AUDIENCE and JWT_SELLER_AUDIENCE must not be empty.');
+  if (!jwtBuyerAudience || !jwtSellerAudience || !jwtAdminAudience) {
+    throw new Error('Configuration error: JWT_BUYER_AUDIENCE, JWT_SELLER_AUDIENCE, and JWT_ADMIN_AUDIENCE must not be empty.');
   }
-  if (jwtBuyerAudience === jwtSellerAudience) {
-    throw new Error('Configuration error: JWT_BUYER_AUDIENCE and JWT_SELLER_AUDIENCE must be distinct.');
+  if (
+    jwtBuyerAudience === jwtSellerAudience ||
+    jwtAdminAudience === jwtBuyerAudience ||
+    jwtAdminAudience === jwtSellerAudience
+  ) {
+    throw new Error('Configuration error: JWT Buyer, Seller, and Admin audiences must be distinct.');
   }
-  if (!jwtExpiresIn) {
-    throw new Error('Configuration error: JWT_EXPIRES_IN must not be empty.');
+  if (!jwtExpiresIn || !jwtAdminExpiresIn) {
+    throw new Error('Configuration error: JWT_EXPIRES_IN and JWT_ADMIN_EXPIRES_IN must not be empty.');
   }
 
   const allowedOrigins = parseAllowedOrigins(env.ALLOWED_ORIGINS, nodeEnv);
+
+  const parsePositiveIntOrDefault = (rawVal: string | undefined, fallback: number, name: string): number => {
+    if (rawVal === undefined || rawVal.trim() === '') return fallback;
+    const parsed = Number(rawVal.trim());
+    if (!Number.isInteger(parsed) || parsed < 1) {
+      throw new Error(`Configuration error: Invalid ${name} "${rawVal}". Must be a positive integer.`);
+    }
+    return parsed;
+  };
+
+  const rawWorkerEnabled = (env.NOTIFICATION_WORKER_ENABLED ?? '').trim().toLowerCase();
+  const notificationWorkerEnabled = rawWorkerEnabled
+    ? rawWorkerEnabled !== 'false' && rawWorkerEnabled !== '0'
+    : nodeEnv !== 'test';
 
   return {
     nodeEnv,
@@ -248,11 +286,21 @@ export function parseGatewayConfig(env: NodeJS.ProcessEnv): GatewayConfig {
     jwtIssuer,
     jwtBuyerAudience,
     jwtSellerAudience,
+    jwtAdminAudience,
     jwtExpiresIn,
+    jwtAdminExpiresIn,
     redisUrl: (env.REDIS_URL || 'redis://localhost:6380').trim(),
     customerDbUrl: (env.CUSTOMER_DB_URL || 'postgresql://postgres:postgres@localhost:5433/streetverse_customer_db').trim(),
     merchantDbUrl: (env.MERCHANT_DB_URL || 'postgresql://postgres:postgres@localhost:5434/streetverse_merchant_db').trim(),
-    aiEngineUrl: (env.AI_ENGINE_URL || 'http://localhost:8000').trim()
+    aiEngineUrl: (env.AI_ENGINE_URL || 'http://localhost:8000').trim(),
+    kycStorageDir: (env.KYC_STORAGE_DIR || path.resolve(__dirname, '..', '..', 'data', 'kyc-documents')).trim(),
+    notificationWorkerEnabled,
+    notificationWorkerPollMs: parsePositiveIntOrDefault(env.NOTIFICATION_WORKER_POLL_MS, 5000, 'NOTIFICATION_WORKER_POLL_MS'),
+    notificationWorkerBatchSize: parsePositiveIntOrDefault(env.NOTIFICATION_WORKER_BATCH_SIZE, 20, 'NOTIFICATION_WORKER_BATCH_SIZE'),
+    notificationWorkerLeaseMs: parsePositiveIntOrDefault(env.NOTIFICATION_WORKER_LEASE_MS, 30000, 'NOTIFICATION_WORKER_LEASE_MS'),
+    notificationWorkerMaxAttempts: parsePositiveIntOrDefault(env.NOTIFICATION_WORKER_MAX_ATTEMPTS, 5, 'NOTIFICATION_WORKER_MAX_ATTEMPTS'),
+    notificationWorkerBaseRetryMs: parsePositiveIntOrDefault(env.NOTIFICATION_WORKER_BASE_RETRY_MS, 2000, 'NOTIFICATION_WORKER_BASE_RETRY_MS'),
+    notificationWorkerMaxRetryMs: parsePositiveIntOrDefault(env.NOTIFICATION_WORKER_MAX_RETRY_MS, 60000, 'NOTIFICATION_WORKER_MAX_RETRY_MS')
   };
 }
 

@@ -20,12 +20,127 @@ import {
   validateNodeEnv
 } from '../../services/api-gateway/src/config/env';
 import { createGatewayApp } from '../../services/api-gateway/src/app';
-import {
-  disconnectEmailRedis,
-  generateOtp,
-  storeOtp,
-  verifyOtp
-} from '../../services/api-gateway/src/services/email';
+import { createEmailService, generateOtp } from '../../services/api-gateway/src/services/email';
+
+function createMockOtpRedis() {
+  const kv = new Map<string, { val: string; expiresAt: number }>();
+  const purge = (k: string) => {
+    const rec = kv.get(k);
+    if (rec && rec.expiresAt <= Date.now()) kv.delete(k);
+  };
+  const applySet = (k: string, val: string, _ex?: string, ttlSec?: number, nx?: string) => {
+    purge(k);
+    if (nx === 'NX' && kv.has(k)) return null;
+    kv.set(k, { val, expiresAt: Date.now() + (ttlSec || 300) * 1000 });
+    return 'OK';
+  };
+  return {
+    status: 'ready',
+    on: () => {},
+    connect: async () => {},
+    ping: async () => 'PONG',
+    quit: async () => 'OK',
+    disconnect: () => {},
+    set: async (...args: any[]) => applySet(args[0], args[1], args[2], args[3], args[4]),
+    ttl: async (k: string) => {
+      purge(k);
+      const rec = kv.get(k);
+      return rec ? Math.max(1, Math.ceil((rec.expiresAt - Date.now()) / 1000)) : -2;
+    },
+    del: async (...keys: string[]) => keys.reduce((n, k) => n + (kv.delete(k) ? 1 : 0), 0),
+    multi: () => {
+      const ops: Array<() => any> = [];
+      const chain: any = {
+        set: (...args: any[]) => {
+          ops.push(() => applySet(args[0], args[1], args[2], args[3], args[4]));
+          return chain;
+        },
+        del: (...keys: string[]) => {
+          ops.push(() => keys.reduce((n, k) => n + (kv.delete(k) ? 1 : 0), 0));
+          return chain;
+        },
+        exec: async () => ops.map((fn) => [null, fn()] as [Error | null, any])
+      };
+      return chain;
+    },
+    eval: async (
+      script: string,
+      numKeys: number,
+      key1: string,
+      arg1OrKey2: string,
+      candidateOrKey3?: string,
+      maxOrToken?: string,
+      maybeOtp?: string,
+      maybeTtlSec?: string
+    ) => {
+      if (numKeys === 1) {
+        purge(key1);
+        const rec = kv.get(key1);
+        if (rec && rec.val === arg1OrKey2) {
+          kv.delete(key1);
+          return 1;
+        }
+        return 0;
+      }
+      if (numKeys === 3) {
+        if (/OWNER_WRITE_FAILED/.test(script)) {
+          const ownerKey = key1;
+          const otpKey = arg1OrKey2;
+          const attemptsKey = candidateOrKey3!;
+          const opToken = maxOrToken!;
+          const otp = maybeOtp!;
+          const ttlSec = Number(maybeTtlSec || 300);
+          applySet(ownerKey, opToken, 'EX', ttlSec);
+          applySet(otpKey, otp, 'EX', ttlSec);
+          applySet(attemptsKey, '0', 'EX', ttlSec);
+          return [1, 'OK', '', 1];
+        }
+        const otpKey = key1;
+        const attemptsKey = arg1OrKey2;
+        const ownerKey = candidateOrKey3!;
+        const expectedToken = maxOrToken!;
+        purge(ownerKey);
+        if (kv.get(ownerKey)?.val === expectedToken) {
+          let n = 0;
+          if (kv.delete(otpKey)) n++;
+          if (kv.delete(attemptsKey)) n++;
+          if (kv.delete(ownerKey)) n++;
+          return n;
+        }
+        return 0;
+      }
+
+      const otpKey = key1;
+      const attemptsKey = arg1OrKey2;
+      const candidate = candidateOrKey3!;
+      const maxStr = maxOrToken!;
+      purge(otpKey);
+      purge(attemptsKey);
+      const stored = kv.get(otpKey)?.val;
+      if (!stored) return [0, 'EXPIRED', 0];
+      const maxAttempts = Number(maxStr);
+      const attempts = Number(kv.get(attemptsKey)?.val || '0');
+      if (attempts >= maxAttempts) {
+        kv.delete(otpKey);
+        kv.delete(attemptsKey);
+        return [0, 'LOCKED', 0];
+      }
+      if (stored !== candidate) {
+        const nextAttempts = attempts + 1;
+        kv.set(attemptsKey, { val: String(nextAttempts), expiresAt: kv.get(otpKey)!.expiresAt });
+        if (nextAttempts >= maxAttempts) {
+          kv.delete(otpKey);
+          kv.delete(attemptsKey);
+          return [0, 'LOCKED', 0];
+        }
+        return [0, 'MISMATCH', maxAttempts - nextAttempts];
+      }
+      kv.delete(otpKey);
+      kv.delete(attemptsKey);
+      return [1, 'OK', 0];
+    }
+  };
+}
 
 interface TestResult {
   name: string;
@@ -318,7 +433,7 @@ export async function runS11ConfigSecurityTests(): Promise<TestResult[]> {
 
     const mockCustomerPool = {
       query: async (sql: string) => {
-        if (/SELECT id, phone, full_name, email, home_address FROM users/i.test(sql)) {
+        if (/FROM users/i.test(sql)) {
           return {
             rows: [
               {
@@ -326,7 +441,10 @@ export async function runS11ConfigSecurityTests(): Promise<TestResult[]> {
                 phone: '+919900000001',
                 full_name: 'Test Buyer',
                 email: buyerEmail,
-                home_address: 'Pune'
+                home_address: 'Pune',
+                preferred_language: 'en',
+                is_verified: true,
+                created_at: '2026-11-26T00:00:00.000Z'
               }
             ],
             rowCount: 1
@@ -338,18 +456,35 @@ export async function runS11ConfigSecurityTests(): Promise<TestResult[]> {
 
     const mockMerchantPool = {
       query: async (sql: string) => {
-        if (/FROM merchants/i.test(sql)) {
+        if (/FROM seller_accounts/i.test(sql)) {
           return {
             rows: [
               {
                 id: 'seller-uuid-001',
+                phone: '+919900000002',
+                email: sellerEmail,
+                is_email_verified: true,
+                status: 'ACTIVE',
+                created_at: '2026-11-26T00:00:00.000Z'
+              }
+            ],
+            rowCount: 1
+          };
+        }
+        if (/FROM store_memberships/i.test(sql)) {
+          return {
+            rows: [
+              {
+                store_id: 'store-uuid-001',
                 business_name: 'Test Kirana',
                 category: 'GROCERY',
-                owner_phone: '+919900000002',
-                owner_email: sellerEmail,
                 upi_vpa: 'test@okaxis',
                 address: 'Pune',
-                is_open: true
+                pincode: '411038',
+                is_open: true,
+                membership_id: 'mem-uuid-001',
+                membership_role: 'OWNER',
+                membership_status: 'ACTIVE'
               }
             ],
             rowCount: 1
@@ -359,17 +494,18 @@ export async function runS11ConfigSecurityTests(): Promise<TestResult[]> {
       }
     };
 
-    const { server, io } = createGatewayApp(cfg, {
+    const mockRedis = createMockOtpRedis();
+    const { server, io, emailService } = createGatewayApp(cfg, {
       customerPool: mockCustomerPool as any,
       merchantPool: mockMerchantPool as any,
-      redis: { set: async () => 'OK', del: async () => 1, on: () => {} } as any
+      redis: mockRedis as any
     });
 
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
     const port = (server.address() as AddressInfo).port;
 
     try {
-      await storeOtp('buyer', buyerEmail, '123456');
+      await emailService.storeOtp('buyer', buyerEmail, '123456');
       const buyerRes = await httpRequest({
         port,
         method: 'POST',
@@ -384,7 +520,7 @@ export async function runS11ConfigSecurityTests(): Promise<TestResult[]> {
       assert(buyerDecoded.iss === cfg.jwtIssuer, 'Buyer iss mismatch');
       assert(buyerDecoded.aud === cfg.jwtBuyerAudience, 'Buyer aud mismatch');
 
-      await storeOtp('seller', sellerEmail, '654321');
+      await emailService.storeOtp('seller', sellerEmail, '654321');
       const sellerRes = await httpRequest({
         port,
         method: 'POST',
@@ -396,8 +532,23 @@ export async function runS11ConfigSecurityTests(): Promise<TestResult[]> {
       const sellerDecoded = jwt.verify(sellerBody.token, cfg.jwtSecret) as jwt.JwtPayload;
       assert(sellerDecoded.sub === 'seller-uuid-001', 'Seller sub mismatch');
       assert(sellerDecoded.role === 'SELLER', 'Seller role mismatch');
+      assert(sellerDecoded.principalType === 'SELLER_ACCOUNT', 'Seller principalType mismatch');
       assert(sellerDecoded.iss === cfg.jwtIssuer, 'Seller iss mismatch');
       assert(sellerDecoded.aud === cfg.jwtSellerAudience, 'Seller aud mismatch');
+
+      // Legacy Merchant-ID Seller token without principalType=SELLER_ACCOUNT must be rejected (401)
+      const legacySellerToken = jwt.sign(
+        { sub: 'store-uuid-001', role: 'SELLER', businessName: 'Test Kirana' },
+        cfg.jwtSecret,
+        { issuer: cfg.jwtIssuer, audience: cfg.jwtSellerAudience, expiresIn: '1h' }
+      );
+      const resLegacySeller = await httpRequest({
+        port,
+        method: 'GET',
+        path: '/api/v1/auth/me',
+        headers: { Authorization: `Bearer ${legacySellerToken}` }
+      });
+      assert(resLegacySeller.statusCode === 401, 'Legacy Merchant-ID seller token must be rejected');
 
       // Valid buyer & seller tokens accepted on /me with audience returned
       const meBuyer = await httpRequest({
@@ -612,19 +763,21 @@ export async function runS11ConfigSecurityTests(): Promise<TestResult[]> {
   });
 
   // -------------------------------------------------------------------------
-  // 4. STANDALONE EMAIL/OTP IMPORT CHECK (NO SERVER NEEDED)
+  // 4. STANDALONE EMAIL/OTP IMPORT CHECK (EXPLICIT REDIS INJECTION, NO SERVER NEEDED)
   // -------------------------------------------------------------------------
-  await runCase('Email/OTP: works standalone without starting HTTP server or dotenv race', async () => {
+  await runCase('Email/OTP: works standalone with injected Redis without starting HTTP server or dotenv race', async () => {
+    const emailService = createEmailService({
+      redisClient: createMockOtpRedis() as any,
+      nodeEnv: 'test'
+    });
     const otp = generateOtp();
     assert(/^\d{6}$/.test(otp), 'Generated OTP must be 6 digits');
-    await storeOtp('buyer', 'standalone.test@example.test', otp);
-    const badAttempt = await verifyOtp('buyer', 'standalone.test@example.test', '000000');
+    await emailService.storeOtp('buyer', 'standalone.test@example.test', otp);
+    const badAttempt = await emailService.verifyOtp('buyer', 'standalone.test@example.test', '000000');
     assert(!badAttempt.valid, 'Wrong OTP must fail verification');
-    const goodAttempt = await verifyOtp('buyer', 'standalone.test@example.test', otp);
+    const goodAttempt = await emailService.verifyOtp('buyer', 'standalone.test@example.test', otp);
     assert(goodAttempt.valid, 'Valid OTP must pass standalone verification');
   });
-
-  disconnectEmailRedis();
 
   return results;
 }

@@ -16,14 +16,6 @@ import jwt from 'jsonwebtoken';
 import pg from 'pg';
 import { createGatewayApp } from '../../services/api-gateway/src/app';
 import { GatewayConfig } from '../../services/api-gateway/src/config/env';
-import {
-  acquireResendCooldown,
-  clearResendCooldown,
-  configureEmailService,
-  disconnectEmailRedis,
-  storeOtp,
-  verifyOtp
-} from '../../services/api-gateway/src/services/email';
 
 const gatewayRequire = createRequire(
   path.resolve(__dirname, '..', '..', 'services', 'api-gateway', 'package.json')
@@ -128,24 +120,20 @@ async function main() {
       aiEngineUrl: 'http://127.0.0.1:8000'
     };
 
-    const { server, io } = createGatewayApp(cfg, {
+    let lastOtp = '';
+    let failSmtp = false;
+    const { server, io, emailService } = createGatewayApp(cfg, {
       customerPool: custPool as any,
       merchantPool: merchPool as any,
-      redis
-    });
-
-    let lastOtp = '';
-    const okTransporter = {
-      sendMail: async (mail: any) => {
-        const m = String(mail.text || '').match(/(\d{6})/);
-        if (m) lastOtp = m[1];
-        return {};
+      redis,
+      emailTransporter: {
+        sendMail: async (mail: any) => {
+          if (failSmtp) throw new Error('SMTP failure');
+          const m = String(mail.text || '').match(/(\d{6})/);
+          if (m) lastOtp = m[1];
+          return {};
+        }
       }
-    };
-    configureEmailService({
-      nodeEnv: 'test',
-      redisClient: redis,
-      transporter: okTransporter
     });
 
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -159,28 +147,28 @@ async function main() {
       // =====================================================================
       const redisRaceEmail = `int.race.${runId}@example.test`;
       createdRedisKeys.push(`otp:buyer:${redisRaceEmail}`, `otp_attempts:buyer:${redisRaceEmail}`);
-      await storeOtp('buyer', redisRaceEmail, '482910');
+      await emailService.storeOtp('buyer', redisRaceEmail, '482910');
 
       // 1. Concurrent Redis Lua OTP verification -> at most 1 success
       const concurrentResults = await Promise.all([
-        verifyOtp('buyer', redisRaceEmail, '482910'),
-        verifyOtp('buyer', redisRaceEmail, '482910'),
-        verifyOtp('buyer', redisRaceEmail, '482910'),
-        verifyOtp('buyer', redisRaceEmail, '482910')
+        emailService.verifyOtp('buyer', redisRaceEmail, '482910'),
+        emailService.verifyOtp('buyer', redisRaceEmail, '482910'),
+        emailService.verifyOtp('buyer', redisRaceEmail, '482910'),
+        emailService.verifyOtp('buyer', redisRaceEmail, '482910')
       ]);
       assert(concurrentResults.filter((r) => r.valid).length === 1, 'Live Redis Lua must permit exactly 1 concurrent OTP success');
 
       // 2. Third incorrect attempt immediately deletes OTP & attempts keys + preserves TTL before strike 3
       const redisLockEmail = `int.lock.${runId}@example.test`;
       createdRedisKeys.push(`otp:buyer:${redisLockEmail}`, `otp_attempts:buyer:${redisLockEmail}`);
-      await storeOtp('buyer', redisLockEmail, '135790');
-      const v1 = await verifyOtp('buyer', redisLockEmail, '000001');
+      await emailService.storeOtp('buyer', redisLockEmail, '135790');
+      const v1 = await emailService.verifyOtp('buyer', redisLockEmail, '000001');
       assert(!v1.valid, 'Attempt 1 must fail');
       const ttlAfterFail = await redis.ttl(`otp_attempts:buyer:${redisLockEmail}`);
       assert(ttlAfterFail > 0 && ttlAfterFail <= 300, `Attempts key TTL must be preserved (got ${ttlAfterFail})`);
-      const v2 = await verifyOtp('buyer', redisLockEmail, '000002');
+      const v2 = await emailService.verifyOtp('buyer', redisLockEmail, '000002');
       assert(!v2.valid, 'Attempt 2 must fail');
-      const v3 = await verifyOtp('buyer', redisLockEmail, '000003');
+      const v3 = await emailService.verifyOtp('buyer', redisLockEmail, '000003');
       assert(!v3.valid && v3.reason?.toLowerCase().includes('too many'), 'Attempt 3 must lock immediately');
       assert((await redis.exists(`otp:buyer:${redisLockEmail}`)) === 0, 'Redis OTP key must be deleted immediately on 3rd strike');
       assert((await redis.exists(`otp_attempts:buyer:${redisLockEmail}`)) === 0, 'Redis attempts key must be deleted immediately on 3rd strike');
@@ -188,13 +176,13 @@ async function main() {
       // 3. Direct Redis 45s cooldown TTL check
       const cdId = `cd-${runId}`;
       createdRedisKeys.push(`otp_cooldown:test-scope:${cdId}`);
-      const cdFirst = await acquireResendCooldown('test-scope', cdId);
-      assert(cdFirst.allowed, 'Initial cooldown acquire must succeed');
+      const cdFirst = await emailService.acquireResendCooldown('test-scope', cdId);
+      assert(cdFirst.allowed && Boolean(cdFirst.token), 'Initial cooldown acquire must succeed with token');
       const cdTtl = await redis.ttl(`otp_cooldown:test-scope:${cdId}`);
       assert(cdTtl > 0 && cdTtl <= 45, `Cooldown TTL must be <= 45s, got ${cdTtl}`);
-      const cdSecond = await acquireResendCooldown('test-scope', cdId);
+      const cdSecond = await emailService.acquireResendCooldown('test-scope', cdId);
       assert(!cdSecond.allowed, 'Second cooldown acquire within 45s must be denied');
-      await clearResendCooldown('test-scope', cdId);
+      await emailService.clearResendCooldown('test-scope', cdId, cdFirst.token!);
 
       // =====================================================================
       // B. LIVE POSTGRESQL BUYER PHONE, LOGIN COOLDOWN & EMAIL CHANGE TESTS
@@ -307,15 +295,7 @@ async function main() {
       createdRedisKeys.push(`otp:email-change:${userId}:${newEmail}`, `otp_attempts:email-change:${userId}:${newEmail}`);
 
       // SMTP failure invalidates OTP & releases cooldown
-      configureEmailService({
-        nodeEnv: 'test',
-        redisClient: redis,
-        transporter: {
-          sendMail: async () => {
-            throw new Error('SMTP failure');
-          }
-        }
-      });
+      failSmtp = true;
       const smtpFail = await httpRequest({
         port,
         method: 'POST',
@@ -328,7 +308,7 @@ async function main() {
       assert((await redis.exists(`otp_cooldown:email-change:${userId}`)) === 0, 'Cooldown must clear on delivery failure');
 
       // Retry with working transporter immediately succeeds
-      configureEmailService({ nodeEnv: 'test', redisClient: redis, transporter: okTransporter });
+      failSmtp = false;
       const reqEmail = await httpRequest({
         port,
         method: 'POST',
@@ -461,7 +441,6 @@ async function main() {
     if (createdRedisKeys.length > 0) {
       await redis.del(...createdRedisKeys).catch(() => {});
     }
-    disconnectEmailRedis();
     await redis.quit().catch(() => {});
     await custPool.end().catch(() => {});
     await merchPool.end().catch(() => {});

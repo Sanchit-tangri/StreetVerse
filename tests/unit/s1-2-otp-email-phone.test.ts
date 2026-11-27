@@ -9,18 +9,8 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { GatewayConfig } from '../../services/api-gateway/src/config/env';
 import { createGatewayApp } from '../../services/api-gateway/src/app';
-import {
-  acquireResendCooldown,
-  clearMemoryOtpStateForTests,
-  clearResendCooldown,
-  configureEmailService,
-  disconnectEmailRedis,
-  generateOtp,
-  invalidateOtp,
-  sendOtpEmail,
-  storeOtp,
-  verifyOtp
-} from '../../services/api-gateway/src/services/email';
+import { createEmailService, generateOtp } from '../../services/api-gateway/src/services/email';
+import { InfrastructureUnavailableError } from '../../services/api-gateway/src/utils/infraErrors';
 import { normalizePhoneNumber } from '../../services/api-gateway/src/utils/phone';
 
 interface TestResult {
@@ -57,7 +47,12 @@ function signToken(
   aud?: string
 ): string {
   return jwt.sign(
-    { sub, role, email: `${sub}@example.test` },
+    {
+      sub,
+      role,
+      ...(role === 'SELLER' ? { principalType: 'SELLER_ACCOUNT' } : {}),
+      email: `${sub}@example.test`
+    },
     cfg.jwtSecret,
     {
       issuer: cfg.jwtIssuer,
@@ -118,27 +113,101 @@ function createMockRedis() {
     if (rec && rec.expiresAt <= Date.now()) kv.delete(k);
   };
 
+  const applySet = (k: string, val: string, _ex?: string, ttlSec?: number, nx?: string) => {
+    purgeExpired(k);
+    if (nx === 'NX' && kv.has(k)) return null;
+    kv.set(k, { val, expiresAt: Date.now() + (ttlSec || 300) * 1000 });
+    return 'OK';
+  };
+
+  const applyDel = (...keys: string[]) => {
+    let count = 0;
+    for (const k of keys) {
+      if (kv.delete(k)) count++;
+    }
+    return count;
+  };
+
   return {
+    status: 'ready',
     on: () => {},
-    set: async (k: string, val: string, _ex?: string, ttlSec?: number, nx?: string) => {
-      purgeExpired(k);
-      if (nx === 'NX' && kv.has(k)) return null;
-      kv.set(k, { val, expiresAt: Date.now() + (ttlSec || 300) * 1000 });
-      return 'OK';
-    },
+    connect: async () => {},
+    ping: async () => 'PONG',
+    quit: async () => 'OK',
+    disconnect: () => {},
+    set: async (k: string, val: string, ex?: string, ttlSec?: number, nx?: string) => applySet(k, val, ex, ttlSec, nx),
     ttl: async (k: string) => {
       purgeExpired(k);
       const rec = kv.get(k);
       return rec ? Math.max(1, Math.ceil((rec.expiresAt - Date.now()) / 1000)) : -2;
     },
-    del: async (...keys: string[]) => {
-      let count = 0;
-      for (const k of keys) {
-        if (kv.delete(k)) count++;
-      }
-      return count;
+    del: async (...keys: string[]) => applyDel(...keys),
+    multi: () => {
+      const ops: Array<() => any> = [];
+      const chain: any = {
+        set: (...args: any[]) => {
+          ops.push(() => applySet(args[0], args[1], args[2], args[3], args[4]));
+          return chain;
+        },
+        del: (...keys: string[]) => {
+          ops.push(() => applyDel(...keys));
+          return chain;
+        },
+        exec: async () => ops.map((op) => [null, op()] as [Error | null, any])
+      };
+      return chain;
     },
-    eval: async (_script: string, _numKeys: number, otpKey: string, attemptsKey: string, candidate: string, maxAttemptsStr: string) => {
+    eval: async (
+      script: string,
+      numKeys: number,
+      key1: string,
+      arg1OrKey2: string,
+      candidateOrKey3?: string,
+      maxOrToken?: string,
+      maybeOtp?: string,
+      maybeTtlSec?: string
+    ) => {
+      if (numKeys === 1) {
+        purgeExpired(key1);
+        const rec = kv.get(key1);
+        if (rec && rec.val === arg1OrKey2) {
+          kv.delete(key1);
+          return 1;
+        }
+        return 0;
+      }
+      if (numKeys === 3) {
+        if (/OWNER_WRITE_FAILED/.test(script)) {
+          const ownerKey = key1;
+          const otpKey = arg1OrKey2;
+          const attemptsKey = candidateOrKey3!;
+          const opToken = maxOrToken!;
+          const otp = maybeOtp!;
+          const ttlSec = Number(maybeTtlSec || 300);
+          applySet(ownerKey, opToken, 'EX', ttlSec);
+          applySet(otpKey, otp, 'EX', ttlSec);
+          applySet(attemptsKey, '0', 'EX', ttlSec);
+          return [1, 'OK', '', 1];
+        }
+        const otpKey = key1;
+        const attemptsKey = arg1OrKey2;
+        const ownerKey = candidateOrKey3!;
+        const expectedToken = maxOrToken!;
+        purgeExpired(ownerKey);
+        if (kv.get(ownerKey)?.val === expectedToken) {
+          let n = 0;
+          if (kv.delete(otpKey)) n++;
+          if (kv.delete(attemptsKey)) n++;
+          if (kv.delete(ownerKey)) n++;
+          return n;
+        }
+        return 0;
+      }
+
+      const otpKey = key1;
+      const attemptsKey = arg1OrKey2;
+      const candidate = candidateOrKey3!;
+      const maxAttemptsStr = maxOrToken!;
       purgeExpired(otpKey);
       purgeExpired(attemptsKey);
       const maxAttempts = Number(maxAttemptsStr);
@@ -155,7 +224,6 @@ function createMockRedis() {
       if (stored !== candidate) {
         const nextAttempts = attempts + 1;
         const otpExp = kv.get(otpKey)!.expiresAt;
-        kv.set(attemptsKey, String(nextAttempts), { expiresAt: otpExp } as any);
         kv.set(attemptsKey, { val: String(nextAttempts), expiresAt: otpExp });
         if (nextAttempts >= maxAttempts) {
           kv.delete(otpKey);
@@ -235,73 +303,74 @@ export async function runS12Tests(): Promise<TestResult[]> {
   // -------------------------------------------------------------------------
   await runCase('OTP: generateOtp covers 6 digits, valid succeeds once, reused & expired fail', async () => {
     const mockRedis = createMockRedis();
-    clearMemoryOtpStateForTests();
-    configureEmailService({ nodeEnv: 'test', redisClient: mockRedis as any, transporter: null });
+    const emailSvc = createEmailService({ nodeEnv: 'test', redisClient: mockRedis as any, transporter: null });
 
     for (let i = 0; i < 100; i++) {
       const code = generateOtp();
       assert(/^\d{6}$/.test(code) && Number(code) >= 100000 && Number(code) <= 999999, `Out of range OTP: ${code}`);
     }
 
-    await storeOtp('buyer', 'otp1@example.test', '482910');
-    const first = await verifyOtp('buyer', 'otp1@example.test', '482910');
+    await emailSvc.storeOtp('buyer', 'otp1@example.test', '482910');
+    const first = await emailSvc.verifyOtp('buyer', 'otp1@example.test', '482910');
     assert(first.valid, 'Valid OTP should succeed once');
 
-    const reused = await verifyOtp('buyer', 'otp1@example.test', '482910');
+    const reused = await emailSvc.verifyOtp('buyer', 'otp1@example.test', '482910');
     assert(!reused.valid, 'Reused OTP must fail');
 
     // Expired OTP fails (TTL expiry simulation)
     await mockRedis.set('otp:buyer:expired@example.test', '123456', 'EX', 0.02);
     await new Promise((r) => setTimeout(r, 35));
-    const expiredTtl = await verifyOtp('buyer', 'expired@example.test', '123456');
+    const expiredTtl = await emailSvc.verifyOtp('buyer', 'expired@example.test', '123456');
     assert(!expiredTtl.valid, 'TTL-expired OTP must fail');
 
     // Missing/unrequested OTP
-    const expired = await verifyOtp('buyer', 'nonexistent@example.test', '123456');
+    const expired = await emailSvc.verifyOtp('buyer', 'nonexistent@example.test', '123456');
     assert(!expired.valid, 'Expired/missing OTP must fail');
   });
 
   await runCase('OTP: third incorrect attempt immediately invalidates challenge & prevents concurrent replay', async () => {
     const mockRedis = createMockRedis();
-    clearMemoryOtpStateForTests();
-    configureEmailService({ nodeEnv: 'test', redisClient: mockRedis as any, transporter: null });
+    const emailSvc = createEmailService({ nodeEnv: 'test', redisClient: mockRedis as any, transporter: null });
 
-    await storeOtp('buyer', 'lock3@example.test', '777888');
-    const a1 = await verifyOtp('buyer', 'lock3@example.test', '000001');
+    await emailSvc.storeOtp('buyer', 'lock3@example.test', '777888');
+    const a1 = await emailSvc.verifyOtp('buyer', 'lock3@example.test', '000001');
     assert(!a1.valid && a1.reason?.includes('2'), `Expected 2 remaining on attempt 1, got ${a1.reason}`);
-    const a2 = await verifyOtp('buyer', 'lock3@example.test', '000002');
+    const a2 = await emailSvc.verifyOtp('buyer', 'lock3@example.test', '000002');
     assert(!a2.valid && a2.reason?.includes('1'), `Expected 1 remaining on attempt 2, got ${a2.reason}`);
-    const a3 = await verifyOtp('buyer', 'lock3@example.test', '000003');
+    const a3 = await emailSvc.verifyOtp('buyer', 'lock3@example.test', '000003');
     assert(!a3.valid && a3.reason?.toLowerCase().includes('too many'), `Expected immediate lockout on attempt 3, got ${a3.reason}`);
 
     // Even valid OTP must now fail because challenge was immediately deleted on 3rd strike
-    const afterLock = await verifyOtp('buyer', 'lock3@example.test', '777888');
+    const afterLock = await emailSvc.verifyOtp('buyer', 'lock3@example.test', '777888');
     assert(!afterLock.valid, 'Valid OTP must fail after 3rd wrong attempt invalidation');
 
-    // Concurrent verification race test (both Lua Redis & memory fallback)
-    await storeOtp('buyer', 'race@example.test', '991122');
+    // Concurrent verification race test via injected Redis
+    await emailSvc.storeOtp('buyer', 'race@example.test', '991122');
     const [r1, r2, r3] = await Promise.all([
-      verifyOtp('buyer', 'race@example.test', '991122'),
-      verifyOtp('buyer', 'race@example.test', '991122'),
-      verifyOtp('buyer', 'race@example.test', '991122')
+      emailSvc.verifyOtp('buyer', 'race@example.test', '991122'),
+      emailSvc.verifyOtp('buyer', 'race@example.test', '991122'),
+      emailSvc.verifyOtp('buyer', 'race@example.test', '991122')
     ]);
     const successCount = [r1, r2, r3].filter((r) => r.valid).length;
     assert(successCount === 1, `Concurrent verification must allow exactly 1 success, got ${successCount}`);
 
-    // Also verify memory fallback compatibility (S1.3 transition)
-    configureEmailService({ nodeEnv: 'test', redisClient: null, transporter: null });
-    await storeOtp('buyer', 'mem@example.test', '334455');
-    const [m1, m2] = await Promise.all([
-      verifyOtp('buyer', 'mem@example.test', '334455'),
-      verifyOtp('buyer', 'mem@example.test', '334455')
-    ]);
-    assert([m1, m2].filter((r) => r.valid).length === 1, 'Memory fallback must allow only 1 success');
+    // Fail-closed check: absent Redis must throw InfrastructureUnavailableError (no silent memory fallback)
+    const noRedisSvc = createEmailService({ nodeEnv: 'test', redisClient: null, transporter: null });
+    let failClosedErr: unknown = null;
+    try {
+      await noRedisSvc.storeOtp('buyer', 'mem@example.test', '334455');
+    } catch (err) {
+      failClosedErr = err;
+    }
+    assert(
+      failClosedErr instanceof InfrastructureUnavailableError && failClosedErr.statusCode === 503,
+      'Null Redis client must fail closed with InfrastructureUnavailableError'
+    );
   });
 
   await runCase('OTP: resend cooldown enforces 45s limit and SMTP failure reports sent=false', async () => {
     const mockRedis = createMockRedis();
-    clearMemoryOtpStateForTests();
-    configureEmailService({
+    const failingEmailSvc = createEmailService({
       nodeEnv: 'test',
       redisClient: mockRedis as any,
       transporter: {
@@ -311,28 +380,27 @@ export async function runS12Tests(): Promise<TestResult[]> {
       }
     });
 
-    const cd1 = await acquireResendCooldown('resend:buyer', 'cool@example.test');
-    assert(cd1.allowed, 'First cooldown acquisition should succeed');
-    const cd2 = await acquireResendCooldown('resend:buyer', 'cool@example.test');
+    const cd1 = await failingEmailSvc.acquireResendCooldown('resend:buyer', 'cool@example.test');
+    assert(cd1.allowed && Boolean(cd1.token), 'First cooldown acquisition should succeed with token');
+    const cd2 = await failingEmailSvc.acquireResendCooldown('resend:buyer', 'cool@example.test');
     assert(!cd2.allowed && (cd2.retryAfterSeconds || 0) > 0, 'Rapid resend must be blocked by cooldown');
-    await clearResendCooldown('resend:buyer', 'cool@example.test');
+    await failingEmailSvc.clearResendCooldown('resend:buyer', 'cool@example.test', cd1.token!);
 
-    const failedDelivery = await sendOtpEmail('cool@example.test', '112233', 'Test');
+    const failedDelivery = await failingEmailSvc.sendOtpEmail('cool@example.test', '112233', 'Test');
     assert(failedDelivery.sent === false, 'SMTP exception must return sent: false');
 
     // Staging/production without SMTP must return sent: false
-    configureEmailService({ nodeEnv: 'production', redisClient: mockRedis as any, transporter: null });
+    const prodEmailSvc = createEmailService({ nodeEnv: 'production', redisClient: mockRedis as any, transporter: null });
     const oldUser = process.env.SMTP_USER;
     const oldPass = process.env.SMTP_PASS;
     delete process.env.SMTP_USER;
     delete process.env.SMTP_PASS;
     try {
-      const prodUnconfigured = await sendOtpEmail('cool@example.test', '112233', 'Prod');
+      const prodUnconfigured = await prodEmailSvc.sendOtpEmail('cool@example.test', '112233', 'Prod');
       assert(prodUnconfigured.sent === false, 'Missing SMTP in production must return sent: false');
     } finally {
       if (oldUser !== undefined) process.env.SMTP_USER = oldUser;
       if (oldPass !== undefined) process.env.SMTP_PASS = oldPass;
-      configureEmailService({ nodeEnv: 'test', redisClient: mockRedis as any, transporter: null });
     }
   });
 
@@ -342,7 +410,6 @@ export async function runS12Tests(): Promise<TestResult[]> {
   await runCase('Email-Change: enforces JWT auth, rejects IDOR & wrong OTP/binding, updates real columns only', async () => {
     const cfg = buildConfig();
     const mockRedis = createMockRedis();
-    clearMemoryOtpStateForTests();
 
     const users = [
       {
@@ -421,19 +488,15 @@ export async function runS12Tests(): Promise<TestResult[]> {
       end: async () => {}
     };
 
-    const { server, io } = createGatewayApp(cfg, {
+    let capturedEmailOtp = '';
+    let shouldFailSmtp = false;
+    const { server, io, emailService } = createGatewayApp(cfg, {
       customerPool: mockCustomerPool as any,
       merchantPool: { query: async () => ({ rows: [], rowCount: 0 }), on: () => {}, end: async () => {} },
-      redis: mockRedis as any
-    });
-
-    // Inject mock redis + transporter for OTP tracking inside email.ts
-    let capturedEmailOtp = '';
-    configureEmailService({
-      nodeEnv: 'test',
-      redisClient: mockRedis as any,
-      transporter: {
+      redis: mockRedis as any,
+      emailTransporter: {
         sendMail: async (mail: any) => {
+          if (shouldFailSmtp) throw new Error('SMTP down');
           const match = String(mail.text || '').match(/(\d{6})/);
           if (match) capturedEmailOtp = match[1];
           return {};
@@ -555,16 +618,7 @@ export async function runS12Tests(): Promise<TestResult[]> {
       assert(users[1].email === 'buyerb@example.test', 'User B email must never be touched');
 
       // Failed SMTP invalidates challenge and returns 502
-      await clearResendCooldown('email-change', 'user-b');
-      configureEmailService({
-        nodeEnv: 'test',
-        redisClient: mockRedis as any,
-        transporter: {
-          sendMail: async () => {
-            throw new Error('SMTP down');
-          }
-        }
-      });
+      shouldFailSmtp = true;
       const smtpFailReq = await httpRequest({
         port,
         method: 'POST',
@@ -629,7 +683,6 @@ export async function runS12Tests(): Promise<TestResult[]> {
   await runCase('Auth: login OTP cooldown prevents resetting attempts, isolates buyer/seller, clears on SMTP failure', async () => {
     const cfg = buildConfig();
     const mockRedis = createMockRedis();
-    clearMemoryOtpStateForTests();
     const passwordHash = await bcrypt.hash('Password123!', 10);
 
     const sharedUuid = 'shared-account-uuid-001';
@@ -662,19 +715,16 @@ export async function runS12Tests(): Promise<TestResult[]> {
 
     const mockMerchantPool = {
       query: async (sql: string) => {
-        if (/FROM merchants/i.test(sql)) {
+        if (/FROM seller_accounts/i.test(sql)) {
           return {
             rows: [
               {
                 id: sharedUuid,
-                business_name: 'Cool Kirana',
-                category: 'GROCERY',
-                owner_phone: '+919876543210',
-                owner_email: sellerEmail,
+                phone: '+919876543210',
+                email: sellerEmail,
                 password_hash: passwordHash,
-                upi_vpa: 'cool@okaxis',
-                address: 'Pune',
-                is_open: true
+                is_email_verified: true,
+                status: 'ACTIVE'
               }
             ],
             rowCount: 1
@@ -686,18 +736,15 @@ export async function runS12Tests(): Promise<TestResult[]> {
       end: async () => {}
     };
 
+    let lastOtp = '';
+    let shouldFailLoginSmtp = false;
     const { server, io } = createGatewayApp(cfg, {
       customerPool: mockCustomerPool as any,
       merchantPool: mockMerchantPool as any,
-      redis: mockRedis as any
-    });
-
-    let lastOtp = '';
-    configureEmailService({
-      nodeEnv: 'test',
-      redisClient: mockRedis as any,
-      transporter: {
+      redis: mockRedis as any,
+      emailTransporter: {
         sendMail: async (mail: any) => {
+          if (shouldFailLoginSmtp) throw new Error('SMTP down');
           const m = String(mail.text || '').match(/(\d{6})/);
           if (m) lastOtp = m[1];
           return {};
@@ -775,15 +822,7 @@ export async function runS12Tests(): Promise<TestResult[]> {
 
       // Seller login with the SAME account UUID must NOT be blocked by Buyer cooldown
       // First simulate SMTP failure -> 502 + clears seller-login cooldown so retry immediately succeeds
-      configureEmailService({
-        nodeEnv: 'test',
-        redisClient: mockRedis as any,
-        transporter: {
-          sendMail: async () => {
-            throw new Error('SMTP down');
-          }
-        }
-      });
+      shouldFailLoginSmtp = true;
       const sellerFail = await httpRequest({
         port,
         method: 'POST',
@@ -792,17 +831,7 @@ export async function runS12Tests(): Promise<TestResult[]> {
       });
       assert(sellerFail.statusCode === 502, `Expected 502 on seller SMTP failure, got ${sellerFail.statusCode}`);
 
-      configureEmailService({
-        nodeEnv: 'test',
-        redisClient: mockRedis as any,
-        transporter: {
-          sendMail: async (mail: any) => {
-            const m = String(mail.text || '').match(/(\d{6})/);
-            if (m) lastOtp = m[1];
-            return {};
-          }
-        }
-      });
+      shouldFailLoginSmtp = false;
       const sellerOk = await httpRequest({
         port,
         method: 'POST',
@@ -822,9 +851,6 @@ export async function runS12Tests(): Promise<TestResult[]> {
       await new Promise<void>((resolve) => io.close(() => resolve()));
     }
   });
-
-  configureEmailService({ redisClient: null, transporter: null });
-  disconnectEmailRedis();
 
   return results;
 }

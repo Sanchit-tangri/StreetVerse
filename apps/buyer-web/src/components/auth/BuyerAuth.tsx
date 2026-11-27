@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ShoppingBag, 
   ArrowRight, 
@@ -7,16 +7,23 @@ import {
   RotateCw,
   Eye,
   EyeOff,
-  Zap,
   ShieldCheck,
   MapPin
 } from 'lucide-react';
+import {
+  AuthenticatedBuyerUser,
+  clearBuyerSession,
+  hydrateBuyerSession,
+  resolveBuyerApiUrl,
+  saveBuyerAccessToken
+} from '../../utils/buyerSession';
 
 interface BuyerAuthProps {
-  onAuthSuccess: (user: any, token: string) => void;
+  onAuthSuccess: (user: AuthenticatedBuyerUser, token: string) => void;
+  sessionNotice?: string | null;
 }
 
-export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onAuthSuccess }) => {
+export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onAuthSuccess, sessionNotice = null }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [step, setStep] = useState<'CREDENTIALS' | 'OTP'>('CREDENTIALS');
   
@@ -32,31 +39,21 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onAuthSuccess }) => {
 
   // UI state
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(sessionNotice || null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://clatter-mousiness-smugness.ngrok-free.dev';
+  const API_URL = resolveBuyerApiUrl();
+
+  useEffect(() => {
+    if (sessionNotice) {
+      setError(sessionNotice);
+    }
+  }, [sessionNotice]);
 
   const defaultHeaders = {
     'Content-Type': 'application/json',
     'ngrok-skip-browser-warning': 'true'
-  };
-
-  // Instant 1-Click Demo Login for testing and immediate evaluation
-  const handleQuickDemoLogin = () => {
-    const demoUser = {
-      id: 'c1000000-0000-0000-0000-000000000001',
-      fullName: 'Rahul Deshmukh',
-      phone: '+91 98901 23456',
-      email: 'rahul.d@example.com',
-      address: 'Flat 402, Mayur Colony, Kothrud, Pune 411038',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'
-    };
-    const demoToken = 'streetverse-jwt-demo-rahul-deshmukh-pune';
-    localStorage.setItem('streetverse_buyer_token', demoToken);
-    localStorage.setItem('streetverse_buyer_user', JSON.stringify(demoUser));
-    onAuthSuccess(demoUser, demoToken);
   };
 
   const handleDemoFill = () => {
@@ -111,8 +108,7 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onAuthSuccess }) => {
         startCooldown();
       }
     } catch (err: any) {
-      // If network fails (e.g. backend offline), provide graceful fallback guidance
-      setError(err.message || 'Connection to server failed. Use 1-Click Demo Login to explore immediately.');
+      setError(err.message || 'Unable to reach authentication service. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -136,9 +132,24 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onAuthSuccess }) => {
         throw new Error(data.error || 'Invalid verification code.');
       }
 
-      localStorage.setItem('streetverse_buyer_token', data.token);
-      localStorage.setItem('streetverse_buyer_user', JSON.stringify(data.user));
-      onAuthSuccess(data.user, data.token);
+      if (!saveBuyerAccessToken(data?.token)) {
+        clearBuyerSession();
+        throw new Error('Authentication server did not issue a valid session token.');
+      }
+
+      const hydration = await hydrateBuyerSession({
+        apiUrl: API_URL,
+        token: data.token
+      });
+
+      if (hydration.status !== 'authenticated' || !hydration.user || !hydration.token) {
+        if (hydration.status === 'unauthenticated' || hydration.status === 'forbidden') {
+          clearBuyerSession();
+        }
+        throw new Error(hydration.errorMessage || 'Unable to verify buyer session.');
+      }
+
+      onAuthSuccess(hydration.user, hydration.token);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -198,22 +209,6 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onAuthSuccess }) => {
             <MapPin size={12} color="#059669" />
             <span>Pune · Bengaluru · Mumbai · Delhi</span>
           </div>
-        </div>
-
-        {/* 1-Click Quick Demo Button */}
-        <div className="quick-demo-strip">
-          <button
-            type="button"
-            onClick={handleQuickDemoLogin}
-            className="quick-demo-btn"
-          >
-            <Zap size={16} />
-            <span>1-Click Demo Login (Rahul Deshmukh · Pune)</span>
-          </button>
-        </div>
-
-        <div className="divider">
-          <span>OR CONTINUE WITH CREDENTIALS</span>
         </div>
 
         {/* Tab Switcher */}
@@ -498,54 +493,6 @@ export const BuyerAuth: React.FC<BuyerAuthProps> = ({ onAuthSuccess }) => {
           font-size: 0.72rem;
           font-weight: 600;
           margin-top: 0.5rem;
-        }
-
-        .quick-demo-strip {
-          margin-bottom: 1rem;
-        }
-
-        .quick-demo-btn {
-          width: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0.5rem;
-          padding: 0.75rem 1rem;
-          background: #EEF2FF;
-          color: #3525CD;
-          border: 1.5px solid #C7D2FE;
-          border-radius: 14px;
-          font-size: 0.85rem;
-          font-weight: 700;
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
-
-        .quick-demo-btn:hover {
-          background: #E0E7FF;
-          border-color: #818CF8;
-          transform: translateY(-1px);
-        }
-
-        .divider {
-          display: flex;
-          align-items: center;
-          text-align: center;
-          margin: 1rem 0;
-          color: #94A3B8;
-          font-size: 0.7rem;
-          font-weight: 700;
-          letter-spacing: 0.05em;
-        }
-
-        .divider::before, .divider::after {
-          content: '';
-          flex: 1;
-          border-bottom: 1px solid #E2E8F0;
-        }
-
-        .divider span {
-          padding: 0 0.5rem;
         }
 
         .tab-container {
